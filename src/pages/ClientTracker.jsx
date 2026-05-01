@@ -1,55 +1,41 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Clock, Wrench, ChevronLeft } from 'lucide-react';
+import { getTicket } from '../services/mockDb';
 
 export default function ClientTracker() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
+  const [ticket, setTicket] = useState(null);
 
-  // Mock data for the timeline
-  const events = [
-    {
-      id: 1,
-      title: 'Recepción del Vehículo',
-      time: '10:00 AM - Hoy',
-      desc: 'El vehículo ha sido recibido y el inventario completado.',
-      status: 'completed', // completed, active, pending
-      icon: <Check size={16} color="white" />,
-    },
-    {
-      id: 2,
-      title: 'Desarmado y Evaluación',
-      time: '11:30 AM - Hoy',
-      desc: 'Se han retirado las piezas dañadas y se está preparando el presupuesto.',
-      photo: 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&q=80&w=800',
-      status: 'completed',
-      icon: <Check size={16} color="white" />,
-    },
-    {
-      id: 3,
-      title: 'Hojalatería / Mecánica',
-      time: 'En proceso',
-      desc: 'Nuestros técnicos están trabajando en la reparación de su vehículo.',
-      photo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&q=80&w=800',
-      status: 'active',
-      icon: <Wrench size={16} color="white" />,
-    },
-    {
-      id: 4,
-      title: 'Preparación y Pintura',
-      time: 'Pendiente',
-      desc: 'Ingreso a cabina de pintura.',
-      status: 'pending',
-      icon: <Clock size={16} color="var(--text-secondary)" />,
-    },
-    {
-      id: 5,
-      title: 'Armado y Entrega',
-      time: 'Pendiente',
-      desc: 'Detallado final y listo para entrega.',
-      status: 'pending',
-      icon: <Clock size={16} color="var(--text-secondary)" />,
+  useEffect(() => {
+    if (ticketId) {
+      setTicket(getTicket(ticketId));
     }
+  }, [ticketId]);
+
+  // Base events data
+  const baseEvents = [
+    { id: 1, title: 'Recepción del Vehículo', time: 'Ingresado', desc: 'El vehículo ha sido recibido y el inventario completado.', icon: <Check size={16} color="white" /> },
+    { id: 2, title: 'Desarmado y Evaluación', time: 'En Revisión', desc: 'Se han retirado las piezas dañadas y se está preparando el presupuesto.', photo: 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&q=80&w=800', icon: <Check size={16} color="white" /> },
+    { id: 3, title: 'Hojalatería / Mecánica', time: 'En proceso', desc: 'Nuestros técnicos están trabajando en la reparación de su vehículo.', photo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&q=80&w=800', icon: <Wrench size={16} color="white" /> },
+    { id: 4, title: 'Preparación y Pintura', time: 'Pendiente', desc: 'Ingreso a cabina de pintura.', icon: <Clock size={16} color="var(--text-secondary)" /> },
+    { id: 5, title: 'Armado y Entrega', time: 'Pendiente', desc: 'Detallado final y listo para entrega.', icon: <Clock size={16} color="var(--text-secondary)" /> }
   ];
+
+  const currentEvents = ticket?.events || [1];
+
+  const events = baseEvents.map((evt, index) => {
+    const isCompleted = currentEvents.includes(evt.id);
+    const isActive = !isCompleted && currentEvents.length === index;
+    const isPending = !isCompleted && !isActive;
+
+    return {
+      ...evt,
+      status: isCompleted ? 'completed' : isActive ? 'active' : 'pending',
+      icon: isPending ? <Clock size={16} color="var(--text-secondary)" /> : evt.icon
+    };
+  });
 
   return (
     <div className="tracker-container">
@@ -61,7 +47,7 @@ export default function ClientTracker() {
           <ChevronLeft size={20} /> Volver
         </button>
         <h1>Tu Vehículo</h1>
-        <p>Ticket: {ticketId || 'TKT-001'} • Toyota Corolla 2020</p>
+        <p>Ticket: {ticketId} • {ticket?.vehicle || 'Buscando vehículo...'}</p>
       </div>
 
       <div className="timeline">
