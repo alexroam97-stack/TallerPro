@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Zap, ArrowRight, Lock } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
-import { useAuth } from '../skills/security';
-import Logo from '../components/Logo';
-import WhatsAppButton from '../components/WhatsAppButton';
+import { useAuth } from '../../skills/security';
+import Logo from '../../components/Logo';
+import WhatsAppButton from '../../components/WhatsAppButton';
 
 export default function LandingPage() {
   const navigate = useNavigate();

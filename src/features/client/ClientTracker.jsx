@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Clock, Wrench, ChevronLeft, Car } from 'lucide-react';
-import { getTicket } from '../services/mockDb';
-import Logo from '../components/Logo';
-import WhatsAppButton from '../components/WhatsAppButton';
+import { getTicket } from '../../services/mockDb';
+import Logo from '../../components/Logo';
+import WhatsAppButton from '../../components/WhatsAppButton';
 
 export default function ClientTracker() {
   const { ticketId } = useParams();
@@ -16,13 +16,23 @@ export default function ClientTracker() {
     }
   }, [ticketId]);
 
-  const baseEvents = [
+  const mechanicalEvents = [
     { id: 1, title: 'Recepción del Vehículo', time: 'Ingresado', desc: 'El vehículo ha sido recibido y el inventario completado.', icon: <Check size={18} /> },
-    { id: 2, title: 'Evaluación Técnica', time: 'En Revisión', desc: 'Se han retirado las piezas dañadas y se está preparando el presupuesto.', photo: 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&q=80&w=800', icon: <Check size={18} /> },
-    { id: 3, title: 'Mecánica / Carrocería', time: 'En proceso', desc: 'Nuestros técnicos están trabajando en la reparación de su vehículo.', photo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&q=80&w=800', icon: <Wrench size={18} /> },
-    { id: 4, title: 'Detallado y Limpieza', time: 'Pendiente', desc: 'Ingreso a cabina de pintura o limpieza profunda.', icon: <Clock size={18} /> },
-    { id: 5, title: 'Control de Calidad', time: 'Pendiente', desc: 'Prueba de manejo final y listo para entrega.', icon: <Clock size={18} /> }
+    { id: 2, title: 'Diagnóstico Técnico', time: 'En Revisión', desc: 'Nuestros técnicos están escaneando y revisando los sistemas del vehículo.', photo: 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&q=80&w=800', icon: <Check size={18} /> },
+    { id: 3, title: 'Reparación / Mantenimiento', time: 'En proceso', desc: 'Se están realizando los trabajos mecánicos autorizados.', photo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&q=80&w=800', icon: <Wrench size={18} /> },
+    { id: 4, title: 'Pruebas y QC', time: 'Pendiente', desc: 'Verificación final de sistemas y prueba de manejo.', icon: <Clock size={18} /> },
+    { id: 5, title: 'Listo para Entrega', time: 'Completado', desc: 'Vehículo verificado y listo para ser recogido.', icon: <Check size={18} /> }
   ];
+
+  const bodyPaintEvents = [
+    { id: 1, title: 'Recepción e Inventario', time: 'Ingresado', desc: 'Vehículo recibido y documentado para proceso de hojalatería.', icon: <Check size={18} /> },
+    { id: 2, title: 'Desarmado y Hojalatería', time: 'En proceso', desc: 'Reparación de golpes y alineación de carrocería.', photo: 'https://images.unsplash.com/photo-1513258496099-48168024adb0?auto=format&fit=crop&q=80&w=800', icon: <Wrench size={18} /> },
+    { id: 3, title: 'Preparación y Pintura', time: 'Pendiente', desc: 'Aplicación de primarios, base color y transparente en cabina.', photo: 'https://images.unsplash.com/photo-1599256872237-5dcc0fbe9668?auto=format&fit=crop&q=80&w=800', icon: <Check size={18} /> },
+    { id: 4, title: 'Armado y Detallado', time: 'Pendiente', desc: 'Reinstalación de piezas, pulido y limpieza profunda.', icon: <Check size={18} /> },
+    { id: 5, title: 'Control de Calidad / Listo', time: 'Completado', desc: 'Inspección final de acabados y entrega al cliente.', icon: <Check size={18} /> }
+  ];
+
+  const baseEvents = ticket?.serviceType === 'Hojalatería y Pintura' ? bodyPaintEvents : mechanicalEvents;
 
   const currentEvents = ticket?.events || [1];
 

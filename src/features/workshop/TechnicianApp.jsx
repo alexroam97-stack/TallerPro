@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight } from 'lucide-react';
-import { getTickets, addEventToTicket, getTicketEvents } from '../services/mockDb';
+import { getTickets, addEventToTicket, getTicketEvents } from '../../services/mockDb';
 
 export default function TechnicianApp() {
   const navigate = useNavigate();
@@ -47,6 +47,18 @@ export default function TechnicianApp() {
       setPhotoBase64(null);
       setMockTickets(getTickets());
     }, 3000);
+  };
+
+  const getNextStepName = () => {
+    if (!selectedTicket) return '';
+    const currentEvents = getTicketEvents(selectedTicket.id);
+    const nextEventId = Math.min(currentEvents.length + 1, 5);
+    
+    const stages = selectedTicket.serviceType === 'Hojalatería y Pintura' 
+      ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
+      : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+      
+    return stages[nextEventId - 1];
   };
 
   const handleCapture = (e) => {
@@ -170,7 +182,7 @@ export default function TechnicianApp() {
                 disabled={!photoBase64}
               >
                 <Upload size={32} />
-                {photoBase64 ? 'SUBIR ESTADO' : 'TOMA UNA FOTO'}
+                {photoBase64 ? `SUBIR: ${getNextStepName().toUpperCase()}` : 'TOMA UNA FOTO'}
               </button>
             </div>
           </div>

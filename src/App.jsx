@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SecurityProvider, ProtectedRoute } from './skills/security';
-import LandingPage from './pages/LandingPage';
-import ShopDashboard from './pages/ShopDashboard';
-import TechnicianApp from './pages/TechnicianApp';
-import ClientTracker from './pages/ClientTracker';
+import LandingPage from './features/client/LandingPage';
+import ShopDashboard from './features/workshop/ShopDashboard';
+import TechnicianApp from './features/workshop/TechnicianApp';
+import ClientTracker from './features/client/ClientTracker';
 
 function App() {
   return (

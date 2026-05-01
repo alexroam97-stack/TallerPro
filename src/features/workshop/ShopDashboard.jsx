@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut } from 'lucide-react';
-import { getTickets, addTicket } from '../services/mockDb';
-import Logo from '../components/Logo';
-import { useAuth } from '../skills/security';
+import { getTickets, addTicket } from '../../services/mockDb';
+import Logo from '../../components/Logo';
+import { useAuth } from '../../skills/security';
 
 export default function ShopDashboard() {
   const navigate = useNavigate();
