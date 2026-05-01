@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode, Home } from 'lucide-react';
+import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight } from 'lucide-react';
 import { getTickets, addEventToTicket, getTicketEvents } from '../services/mockDb';
 
 export default function TechnicianApp() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: Select/Scan, 2: Camera/Upload, 3: Success
+  const [step, setStep] = useState(1); 
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [mockTickets, setMockTickets] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -24,7 +24,6 @@ export default function TechnicianApp() {
     setTimeout(() => {
       setIsScanning(false);
       if (mockTickets.length > 0) {
-        // Pick the most recent ticket
         handleSelectTicket(mockTickets[mockTickets.length - 1]);
       } else {
         alert('No hay vehículos registrados para escanear.');
@@ -43,106 +42,118 @@ export default function TechnicianApp() {
     setTimeout(() => {
       setStep(1);
       setSelectedTicket(null);
-      // Refresh tickets
       setMockTickets(getTickets());
     }, 3000);
   };
 
   return (
-    <div className="tech-container" style={{ position: 'relative' }}>
-      {step === 1 && (
-        <div className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <button 
-            onClick={() => navigate('/')}
-            style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: '500', marginBottom: '2rem', cursor: 'pointer', padding: '0.5rem 0' }}
-          >
-            <Home size={20} /> Inicio
-          </button>
-          
-          <h2 style={{ fontSize: '2rem', marginBottom: '2rem', textAlign: 'center' }}>Seleccionar Vehículo</h2>
-          
-          <button onClick={handleScanQR} className="big-btn" style={{ marginBottom: '2rem', height: '120px', position: 'relative', overflow: 'hidden' }}>
-            <QrCode size={48} />
-            {isScanning ? 'Escaneando...' : 'Escanear QR'}
-            {isScanning && (
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'white', opacity: 0.5, animation: 'scan 1.5s ease-in-out infinite' }} />
-            )}
-          </button>
+    <div className="relative min-h-screen flex flex-col text-white overflow-hidden selection:bg-accent-primary/30">
+      {/* Background */}
+      <img 
+        src="/assets/bg-internal.png" 
+        className="full-screen-bg"
+        alt="Tech Background"
+      />
+      <div className="bg-glow" />
 
-          <style>{`
-            @keyframes scan {
-              0% { transform: translateY(0); }
-              50% { transform: translateY(116px); }
-              100% { transform: translateY(0); }
-            }
-          `}</style>
-
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '1rem' }}>O selecciona de la lista:</div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {mockTickets.map(t => (
-              <button 
-                key={t.id} 
-                className="big-btn secondary" 
-                onClick={() => handleSelectTicket(t)}
-                style={{ justifyContent: 'flex-start', padding: '1.5rem' }}
-              >
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>{t.id}</div>
-                  <div style={{ fontSize: '1rem', fontWeight: '400', color: 'var(--text-secondary)' }}>{t.vehicle}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <button 
-            onClick={() => setStep(1)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', marginBottom: '2rem', cursor: 'pointer', padding: '1rem 0' }}
-          >
-            <ChevronLeft size={24} /> Volver
-          </button>
-
-          <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{selectedTicket?.id}</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem', marginBottom: '2rem' }}>{selectedTicket?.vehicle}</p>
-
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2rem' }}>
-            {/* The area is big so it's easy to press */}
-            <div 
-              style={{ 
-                height: '300px', 
-                backgroundColor: 'var(--bg-tertiary)', 
-                borderRadius: '1rem', 
-                border: '2px dashed var(--border-color)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-secondary)'
-              }}
+      <main className="flex-1 p-6 flex flex-col relative z-10 max-w-lg mx-auto w-full">
+        {step === 1 && (
+          <div className="animate-fade-in flex flex-col h-full">
+            <button 
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 text-accent-primary font-bold mb-8 hover:opacity-80 transition-opacity"
             >
-              <Camera size={64} style={{ marginBottom: '1rem' }} />
-              <span style={{ fontSize: '1.5rem', fontWeight: '600' }}>Tocar para Capturar</span>
+              <Home size={24} /> INICIO
+            </button>
+            
+            <h2 className="text-4xl font-black mb-8 tracking-tighter">ORDEN DE TRABAJO</h2>
+            
+            <button 
+              onClick={handleScanQR} 
+              className="relative overflow-hidden w-full aspect-square liquid-glass rounded-[3rem] mb-12 flex flex-col items-center justify-center gap-4 group active:scale-95 transition-transform shadow-ui"
+            >
+              <div className="p-8 rounded-full bg-accent-primary/20 group-hover:bg-accent-primary/30 transition-colors">
+                <QrCode size={80} className="text-accent-primary" />
+              </div>
+              <span className="text-2xl font-black tracking-widest uppercase">
+                {isScanning ? 'ESCANEANDO...' : 'ESCANEAR QR'}
+              </span>
+              {isScanning && (
+                <div className="absolute inset-x-0 h-1 bg-accent-primary/50 shadow-[0_0_15px_rgba(0,242,255,0.8)] animate-[scan_1.5s_ease-in-out_infinite]" />
+              )}
+            </button>
+
+            <style>{`
+              @keyframes scan {
+                0% { top: 0%; }
+                100% { top: 100%; }
+              }
+            `}</style>
+
+            <div className="text-center text-gray-500 font-bold tracking-widest mb-6">O SELECCIONA DE LA LISTA</div>
+            
+            <div className="space-y-4 pb-12">
+              {mockTickets.map(t => (
+                <button 
+                  key={t.id} 
+                  className="w-full card-morphism flex justify-between items-center group active:scale-95" 
+                  onClick={() => handleSelectTicket(t)}
+                >
+                  <div className="text-left">
+                    <div className="text-2xl font-black text-accent-primary">{t.id}</div>
+                    <div className="text-lg text-gray-400 font-bold">{t.vehicle}</div>
+                  </div>
+                  <ArrowRight className="text-gray-600 group-hover:text-accent-primary transition-colors" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="animate-fade-in flex flex-col h-full">
+            <button 
+              onClick={() => setStep(1)}
+              className="flex items-center gap-2 text-gray-400 font-bold mb-8 hover:text-white transition-colors"
+            >
+              <ChevronLeft size={24} /> VOLVER
+            </button>
+
+            <div className="mb-8">
+              <h2 className="text-5xl font-black text-accent-primary tracking-tighter">{selectedTicket?.id}</h2>
+              <p className="text-xl text-gray-400 font-bold uppercase tracking-tight">{selectedTicket?.vehicle}</p>
             </div>
 
-            <button className="big-btn success" onClick={handleSimulateUpload} style={{ height: '80px' }}>
-              <Upload size={32} />
-              Subir Evidencia
-            </button>
-          </div>
-        </div>
-      )}
+            <div className="flex-1 flex flex-col gap-8">
+              <div 
+                className="flex-1 liquid-glass rounded-[3rem] border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-4 text-gray-500 hover:border-accent-primary/50 hover:bg-white/5 transition-all cursor-pointer group shadow-ui"
+              >
+                <div className="p-10 rounded-full bg-white/5 group-hover:bg-accent-primary/10 transition-colors">
+                  <Camera size={100} className="group-hover:text-accent-primary transition-colors" />
+                </div>
+                <span className="text-xl font-black tracking-widest uppercase">CAPTURA DE EVIDENCIA</span>
+              </div>
 
-      {step === 3 && (
-        <div className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <CheckCircle2 size={120} color="var(--success)" style={{ marginBottom: '2rem' }} />
-          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', color: 'var(--success)' }}>¡Foto Subida!</h2>
-          <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '1rem' }}>El cliente ha sido notificado.</p>
-        </div>
-      )}
+              <button className="btn-premium py-8 text-2xl font-black tracking-widest flex items-center justify-center gap-4 shadow-ui" onClick={handleSimulateUpload}>
+                <Upload size={32} />
+                SUBIR ESTADO
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="animate-fade-in flex-1 flex flex-col items-center justify-center text-center">
+            <div className="p-12 rounded-full bg-accent-success/10 mb-8 animate-bounce">
+              <CheckCircle2 size={120} className="text-accent-success" />
+            </div>
+            <h2 className="text-5xl font-black text-accent-success tracking-tighter mb-4">¡ÉXITO!</h2>
+            <p className="text-xl text-gray-400 font-bold uppercase tracking-widest">Estado Actualizado</p>
+            <p className="text-gray-600 mt-2">El cliente ha sido notificado automáticamente.</p>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
+

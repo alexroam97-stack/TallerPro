@@ -3,8 +3,8 @@
 const DB_KEY = 'tallerpro_tickets';
 
 const defaultTickets = [
-  { id: 'TKT-001', client: 'Juan Pérez', vehicle: 'Toyota Corolla 2020', status: 'Recepción', events: [1] },
-  { id: 'TKT-002', client: 'María Gómez', vehicle: 'Honda Civic 2019', status: 'Pintura', events: [1, 2, 3] },
+  { id: 'TKT-X821', client: 'Juan Pérez', vehicle: 'Toyota Corolla 2020', status: 'Recepción', events: [1] },
+  { id: 'TKT-Z493', client: 'María Gómez', vehicle: 'Honda Civic 2019', status: 'Pintura', events: [1, 2, 3] },
 ];
 
 export const getTickets = () => {
@@ -18,10 +18,12 @@ export const getTickets = () => {
 
 export const addTicket = (client, vehicle) => {
   const tickets = getTickets();
-  const newId = `TKT-${String(tickets.length + 1).padStart(3, '0')}`;
+  // Generar ID no secuencial para evitar enumeración
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const newId = `TKT-${randomSuffix}`;
   const newTicket = {
     id: newId,
-    client,
+    client: client, // En producción, esto debería estar encriptado
     vehicle,
     status: 'Recepción',
     events: [1] // Start with event 1 completed
