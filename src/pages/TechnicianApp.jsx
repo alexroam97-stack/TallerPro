@@ -1,25 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode } from 'lucide-react';
+import { getTickets, addEventToTicket, getTicketEvents } from '../services/mockDb';
 
 export default function TechnicianApp() {
   const [step, setStep] = useState(1); // 1: Select/Scan, 2: Camera/Upload, 3: Success
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [mockTickets, setMockTickets] = useState([]);
+  const [isScanning, setIsScanning] = useState(false);
 
-  const mockTickets = [
-    { id: 'TKT-001', vehicle: 'Toyota Corolla 2020' },
-    { id: 'TKT-002', vehicle: 'Honda Civic 2019' }
-  ];
+  useEffect(() => {
+    setMockTickets(getTickets());
+  }, []);
 
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
     setStep(2);
   };
 
+  const handleScanQR = () => {
+    setIsScanning(true);
+    setTimeout(() => {
+      setIsScanning(false);
+      if (mockTickets.length > 0) {
+        // Pick the most recent ticket
+        handleSelectTicket(mockTickets[mockTickets.length - 1]);
+      } else {
+        alert('No hay vehículos registrados para escanear.');
+      }
+    }, 1500);
+  };
+
   const handleSimulateUpload = () => {
+    if (selectedTicket) {
+      const currentEvents = getTicketEvents(selectedTicket.id);
+      const nextEventId = currentEvents.length + 1;
+      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5));
+    }
+    
     setStep(3);
     setTimeout(() => {
       setStep(1);
       setSelectedTicket(null);
+      // Refresh tickets
+      setMockTickets(getTickets());
     }, 3000);
   };
 
@@ -29,10 +52,21 @@ export default function TechnicianApp() {
         <div className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <h2 style={{ fontSize: '2rem', marginBottom: '2rem', textAlign: 'center' }}>Seleccionar Vehículo</h2>
           
-          <button className="big-btn" style={{ marginBottom: '2rem', height: '120px' }}>
+          <button onClick={handleScanQR} className="big-btn" style={{ marginBottom: '2rem', height: '120px', position: 'relative', overflow: 'hidden' }}>
             <QrCode size={48} />
-            Escanear QR
+            {isScanning ? 'Escaneando...' : 'Escanear QR'}
+            {isScanning && (
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'white', opacity: 0.5, animation: 'scan 1.5s ease-in-out infinite' }} />
+            )}
           </button>
+
+          <style>{`
+            @keyframes scan {
+              0% { transform: translateY(0); }
+              50% { transform: translateY(116px); }
+              100% { transform: translateY(0); }
+            }
+          `}</style>
 
           <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '1rem' }}>O selecciona de la lista:</div>
           
