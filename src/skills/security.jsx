@@ -61,16 +61,7 @@ export const SecurityProvider = ({ children }) => {
     localStorage.removeItem('tp_session');
   };
 
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const isClientIdValid = clientId && !clientId.includes('your-client-id-here');
-
-  if (!isClientIdValid) {
-    return (
-      <AuthContext.Provider value={{ user, loginWithGoogle, logout, loading }}>
-        {children}
-      </AuthContext.Provider>
-    );
-  }
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy-client-id";
 
   return (
     <GoogleOAuthProvider clientId={clientId}>

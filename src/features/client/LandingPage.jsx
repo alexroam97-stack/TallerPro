@@ -109,7 +109,7 @@ export default function LandingPage() {
             <p className="text-gray-400 mb-10 text-lg">Accede a tu cuenta corporativa para gestionar el taller.</p>
             
             <div className="flex flex-col items-center gap-4 mb-8">
-              {import.meta.env.VITE_GOOGLE_CLIENT_ID?.includes('your-client-id') ? (
+              {(!import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your-client-id')) ? (
                 <button 
                   className="btn-premium w-full py-4"
                   onClick={() => handleGoogleSuccess({ credential: 'fake_jwt_for_demo' })}
