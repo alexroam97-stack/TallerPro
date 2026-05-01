@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode, Home } from 'lucide-react';
 import { getTickets, addEventToTicket, getTicketEvents } from '../services/mockDb';
 
 export default function TechnicianApp() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: Select/Scan, 2: Camera/Upload, 3: Success
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [mockTickets, setMockTickets] = useState([]);
@@ -47,9 +49,16 @@ export default function TechnicianApp() {
   };
 
   return (
-    <div className="tech-container">
+    <div className="tech-container" style={{ position: 'relative' }}>
       {step === 1 && (
         <div className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <button 
+            onClick={() => navigate('/')}
+            style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: '500', marginBottom: '2rem', cursor: 'pointer', padding: '0.5rem 0' }}
+          >
+            <Home size={20} /> Inicio
+          </button>
+          
           <h2 style={{ fontSize: '2rem', marginBottom: '2rem', textAlign: 'center' }}>Seleccionar Vehículo</h2>
           
           <button onClick={handleScanQR} className="big-btn" style={{ marginBottom: '2rem', height: '120px', position: 'relative', overflow: 'hidden' }}>
