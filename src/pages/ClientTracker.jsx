@@ -1,8 +1,9 @@
-import { useParams } from 'react-router-dom';
-import { Check, Clock, Wrench } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Check, Clock, Wrench, ChevronLeft } from 'lucide-react';
 
 export default function ClientTracker() {
   const { ticketId } = useParams();
+  const navigate = useNavigate();
 
   // Mock data for the timeline
   const events = [
@@ -52,7 +53,13 @@ export default function ClientTracker() {
 
   return (
     <div className="tracker-container">
-      <div className="tracker-header animate-fade-in">
+      <div className="tracker-header animate-fade-in" style={{ position: 'relative' }}>
+        <button 
+          onClick={() => navigate('/')}
+          style={{ position: 'absolute', left: 0, top: 0, background: 'none', border: 'none', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '1rem', fontWeight: '500' }}
+        >
+          <ChevronLeft size={20} /> Volver
+        </button>
         <h1>Tu Vehículo</h1>
         <p>Ticket: {ticketId || 'TKT-001'} • Toyota Corolla 2020</p>
       </div>
