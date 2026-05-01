@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, LogOut, Car, Link as LinkIcon, X } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X } from 'lucide-react';
 import { getTickets, addTicket } from '../services/mockDb';
 
 export default function ShopDashboard() {
@@ -44,9 +44,9 @@ export default function ShopDashboard() {
 
         <button 
           onClick={() => navigate('/')}
-          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '1rem' }}
+          style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '1rem', fontWeight: '500' }}
         >
-          <LogOut size={20} /> Salir
+          <Home size={20} /> Volver al Inicio
         </button>
       </aside>
 
