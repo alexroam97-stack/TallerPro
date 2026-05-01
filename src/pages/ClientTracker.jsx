@@ -31,8 +31,12 @@ export default function ClientTracker() {
     const isActive = !isCompleted && currentEvents.length === index;
     const isPending = !isCompleted && !isActive;
 
+    // Get real photo from ticket if available, else use fallback
+    const realPhoto = ticket?.photos?.[evt.id];
+
     return {
       ...evt,
+      photo: realPhoto || evt.photo, // Real photo overrides stock photo
       status: isCompleted ? 'completed' : isActive ? 'active' : 'pending'
     };
   });

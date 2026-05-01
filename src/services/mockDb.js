@@ -3,8 +3,8 @@
 const DB_KEY = 'tallerpro_tickets';
 
 const defaultTickets = [
-  { id: 'TKT-X821', client: 'Juan Pérez', vehicle: 'Toyota Corolla 2020', status: 'Recepción', events: [1] },
-  { id: 'TKT-Z493', client: 'María Gómez', vehicle: 'Honda Civic 2019', status: 'Pintura', events: [1, 2, 3] },
+  { id: 'TKT-X821', client: 'Juan Pérez', vehicle: 'Toyota Corolla 2020', serviceType: 'Mecánica', status: 'Recepción', events: [1], photos: {} },
+  { id: 'TKT-Z493', client: 'María Gómez', vehicle: 'Honda Civic 2019', serviceType: 'Hojalatería y Pintura', status: 'Pintura', events: [1, 2, 3], photos: {} },
 ];
 
 export const getTickets = () => {
@@ -16,7 +16,7 @@ export const getTickets = () => {
   return JSON.parse(data);
 };
 
-export const addTicket = (client, vehicle) => {
+export const addTicket = (client, vehicle, serviceType = 'Mecánica') => {
   const tickets = getTickets();
   // Generar ID no secuencial para evitar enumeración
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -25,15 +25,17 @@ export const addTicket = (client, vehicle) => {
     id: newId,
     client: client, // En producción, esto debería estar encriptado
     vehicle,
+    serviceType,
     status: 'Recepción',
-    events: [1] // Start with event 1 completed
+    events: [1], // Start with event 1 completed
+    photos: {}
   };
   tickets.push(newTicket);
   localStorage.setItem(DB_KEY, JSON.stringify(tickets));
   return newTicket;
 };
 
-export const addEventToTicket = (ticketId, eventId) => {
+export const addEventToTicket = (ticketId, eventId, photoBase64 = null) => {
   const tickets = getTickets();
   const ticketIndex = tickets.findIndex(t => t.id === ticketId);
   if (ticketIndex > -1) {
@@ -42,6 +44,11 @@ export const addEventToTicket = (ticketId, eventId) => {
     }
     if (!tickets[ticketIndex].events.includes(eventId)) {
       tickets[ticketIndex].events.push(eventId);
+    }
+    
+    if (photoBase64) {
+      if (!tickets[ticketIndex].photos) tickets[ticketIndex].photos = {};
+      tickets[ticketIndex].photos[eventId] = photoBase64;
     }
     
     // Update status based on event

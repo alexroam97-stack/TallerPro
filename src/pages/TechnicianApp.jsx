@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight } from 'lucide-react';
 import { getTickets, addEventToTicket, getTicketEvents } from '../services/mockDb';
@@ -9,6 +9,8 @@ export default function TechnicianApp() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [mockTickets, setMockTickets] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [photoBase64, setPhotoBase64] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setMockTickets(getTickets());
@@ -35,15 +37,27 @@ export default function TechnicianApp() {
     if (selectedTicket) {
       const currentEvents = getTicketEvents(selectedTicket.id);
       const nextEventId = currentEvents.length + 1;
-      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5));
+      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5), photoBase64);
     }
     
     setStep(3);
     setTimeout(() => {
       setStep(1);
       setSelectedTicket(null);
+      setPhotoBase64(null);
       setMockTickets(getTickets());
     }, 3000);
+  };
+
+  const handleCapture = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoBase64(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -126,17 +140,37 @@ export default function TechnicianApp() {
 
             <div className="flex-1 flex flex-col gap-8">
               <div 
-                className="flex-1 liquid-glass rounded-[3rem] border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-4 text-gray-500 hover:border-accent-primary/50 hover:bg-white/5 transition-all cursor-pointer group shadow-ui"
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                className="flex-1 liquid-glass rounded-[3rem] border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-4 text-gray-500 hover:border-accent-primary/50 hover:bg-white/5 transition-all cursor-pointer group shadow-ui relative overflow-hidden"
               >
-                <div className="p-10 rounded-full bg-white/5 group-hover:bg-accent-primary/10 transition-colors">
-                  <Camera size={100} className="group-hover:text-accent-primary transition-colors" />
-                </div>
-                <span className="text-xl font-black tracking-widest uppercase">CAPTURA DE EVIDENCIA</span>
+                {photoBase64 ? (
+                  <img src={photoBase64} alt="Evidencia" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <div className="p-10 rounded-full bg-white/5 group-hover:bg-accent-primary/10 transition-colors">
+                      <Camera size={100} className="group-hover:text-accent-primary transition-colors" />
+                    </div>
+                    <span className="text-xl font-black tracking-widest uppercase">CAPTURA DE EVIDENCIA</span>
+                  </>
+                )}
               </div>
 
-              <button className="btn-premium py-8 text-2xl font-black tracking-widest flex items-center justify-center gap-4 shadow-ui" onClick={handleSimulateUpload}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                capture="environment" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleCapture} 
+              />
+
+              <button 
+                className={`btn-premium py-8 text-2xl font-black tracking-widest flex items-center justify-center gap-4 shadow-ui transition-all ${!photoBase64 ? 'opacity-50 cursor-not-allowed grayscale' : ''}`} 
+                onClick={handleSimulateUpload}
+                disabled={!photoBase64}
+              >
                 <Upload size={32} />
-                SUBIR ESTADO
+                {photoBase64 ? 'SUBIR ESTADO' : 'TOMA UNA FOTO'}
               </button>
             </div>
           </div>

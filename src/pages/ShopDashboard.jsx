@@ -10,8 +10,11 @@ export default function ShopDashboard() {
   const { logout, user } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('vehiculos'); // vehiculos, clientes
+  const [selectedQR, setSelectedQR] = useState(null);
   const [newClient, setNewClient] = useState('');
   const [newVehicle, setNewVehicle] = useState('');
+  const [newServiceType, setNewServiceType] = useState('Mecánica');
 
   useEffect(() => {
     setTickets(getTickets());
@@ -20,11 +23,12 @@ export default function ShopDashboard() {
   const handleAddTicket = (e) => {
     e.preventDefault();
     if (!newClient || !newVehicle) return;
-    const newTicket = addTicket(newClient, newVehicle);
+    const newTicket = addTicket(newClient, newVehicle, newServiceType);
     setTickets([...tickets, newTicket]);
     setIsModalOpen(false);
     setNewClient('');
     setNewVehicle('');
+    setNewServiceType('Mecánica');
   };
 
   return (
@@ -42,11 +46,17 @@ export default function ShopDashboard() {
         <Logo size="sm" className="mb-12" />
         
         <nav className="flex-1 space-y-2">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-accent-primary/20 text-accent-primary border border-accent-primary/30 font-bold transition-all">
+          <button 
+            onClick={() => setActiveTab('vehiculos')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${activeTab === 'vehiculos' ? 'bg-accent-primary/20 text-accent-primary border border-accent-primary/30' : 'text-gray-400 hover:bg-white/5 border border-transparent'}`}
+          >
             <Car size={20} />
             Vehículos Activos
           </button>
-          <button onClick={() => alert('Próximamente')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 transition-all">
+          <button 
+            onClick={() => setActiveTab('clientes')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${activeTab === 'clientes' ? 'bg-accent-primary/20 text-accent-primary border border-accent-primary/30' : 'text-gray-400 hover:bg-white/5 border border-transparent'}`}
+          >
             <Users size={20} />
             Clientes
           </button>
@@ -94,44 +104,83 @@ export default function ShopDashboard() {
           </button>
         </header>
 
-        <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/10 text-gray-400 text-sm font-bold uppercase tracking-wider">
-                  <th className="px-6 py-4">Ticket</th>
-                  <th className="px-6 py-4">Cliente</th>
-                  <th className="px-6 py-4">Vehículo</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {tickets.map(ticket => (
-                  <tr key={ticket.id} className="group hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-6 font-black text-accent-primary">{ticket.id}</td>
-                    <td className="px-6 py-6 font-bold">{ticket.client}</td>
-                    <td className="px-6 py-6 text-gray-400 font-medium">{ticket.vehicle}</td>
-                    <td className="px-6 py-6">
-                      <span className="px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
-                        {ticket.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-6">
-                      <button 
-                        onClick={() => navigate(`/tracker/${ticket.id}`)}
-                        className="flex items-center gap-2 text-sm font-bold text-accent-primary hover:text-white transition-colors"
-                      >
-                        <LinkIcon size={16} />
-                        TRACKER
-                      </button>
-                    </td>
+        {activeTab === 'vehiculos' ? (
+          <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/10 text-gray-400 text-sm font-bold uppercase tracking-wider">
+                    <th className="px-6 py-4">Ticket</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Vehículo</th>
+                    <th className="px-6 py-4">Tipo</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {tickets.map(ticket => (
+                    <tr key={ticket.id} className="group hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-6 font-black text-accent-primary">{ticket.id}</td>
+                      <td className="px-6 py-6 font-bold">{ticket.client}</td>
+                      <td className="px-6 py-6 text-gray-400 font-medium">{ticket.vehicle}</td>
+                      <td className="px-6 py-6 text-xs text-gray-500">{ticket.serviceType || 'Mecánica'}</td>
+                      <td className="px-6 py-6">
+                        <span className="px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
+                          {ticket.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={() => navigate(`/tracker/${ticket.id}`)}
+                            className="flex items-center gap-2 text-sm font-bold text-accent-primary hover:text-white transition-colors"
+                          >
+                            <LinkIcon size={16} />
+                            TRACKER
+                          </button>
+                          <button 
+                            onClick={() => setSelectedQR(ticket.id)}
+                            className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
+                          >
+                            <QrCode size={16} />
+                            QR
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/10 text-gray-400 text-sm font-bold uppercase tracking-wider">
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Vehículo(s)</th>
+                    <th className="px-6 py-4">Tickets Activos</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {Array.from(new Set(tickets.map(t => t.client))).map(clientName => {
+                    const clientTickets = tickets.filter(t => t.client === clientName);
+                    return (
+                      <tr key={clientName} className="group hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-6 font-black text-accent-primary">{clientName}</td>
+                        <td className="px-6 py-6 text-gray-400 font-medium">{clientTickets.map(t => t.vehicle).join(', ')}</td>
+                        <td className="px-6 py-6 font-bold">{clientTickets.length}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Modal Nuevo Ingreso */}
         {isModalOpen && (
@@ -168,11 +217,55 @@ export default function ShopDashboard() {
                     required
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-400 ml-1 uppercase">TIPO DE SERVICIO</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setNewServiceType('Mecánica')}
+                      className={`py-3 rounded-xl font-bold border transition-all ${newServiceType === 'Mecánica' ? 'bg-accent-primary/20 border-accent-primary text-accent-primary' : 'bg-white/5 border-white/10 text-gray-400'}`}
+                    >
+                      Mecánica
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setNewServiceType('Hojalatería y Pintura')}
+                      className={`py-3 rounded-xl font-bold border transition-all ${newServiceType === 'Hojalatería y Pintura' ? 'bg-accent-primary/20 border-accent-primary text-accent-primary' : 'bg-white/5 border-white/10 text-gray-400'}`}
+                    >
+                      Hojalatería y Pintura
+                    </button>
+                  </div>
+                </div>
                 
                 <button type="submit" className="btn-premium w-full py-4 text-lg mt-4">
                   Generar Orden de Trabajo
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal QR Code */}
+        {selectedQR && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <div className="liquid-glass p-10 rounded-[2.5rem] w-full max-w-sm shadow-ui border-white/20 animate-fade-in-up text-center">
+              <header className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-black">QR del Vehículo</h2>
+                <button onClick={() => setSelectedQR(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                  <X size={24} />
+                </button>
+              </header>
+              <div className="bg-white p-6 rounded-[2rem] inline-block mb-6 shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedQR}`} 
+                  alt="QR Code" 
+                  className="w-48 h-48 block" 
+                />
+              </div>
+              <p className="text-gray-400 font-bold mb-1">TICKET</p>
+              <p className="text-3xl font-black text-accent-primary tracking-tighter mb-4">{selectedQR}</p>
+              <p className="text-sm text-gray-500 font-medium">El técnico puede escanear este código para acceder a la orden de trabajo.</p>
             </div>
           </div>
         )}
