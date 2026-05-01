@@ -15,6 +15,7 @@ export default function ShopDashboard() {
   const [selectedQR, setSelectedQR] = useState(null);
   const [newClient, setNewClient] = useState('');
   const [newVehicle, setNewVehicle] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newServiceType, setNewServiceType] = useState('Mecánica');
   const [selectedBillingTicket, setSelectedBillingTicket] = useState(null);
 
@@ -25,11 +26,12 @@ export default function ShopDashboard() {
   const handleAddTicket = (e) => {
     e.preventDefault();
     if (!newClient || !newVehicle) return;
-    const newTicket = addTicket(newClient, newVehicle, newServiceType);
+    const newTicket = addTicket(newClient, newVehicle, newServiceType, newPhone);
     setTickets([...tickets, newTicket]);
     setIsModalOpen(false);
     setNewClient('');
     setNewVehicle('');
+    setNewPhone('');
     setNewServiceType('Mecánica');
   };
 
@@ -224,6 +226,17 @@ export default function ShopDashboard() {
                     value={newVehicle}
                     onChange={(e) => setNewVehicle(e.target.value)}
                     required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-400 ml-1">TELÉFONO DE CONTACTO (WHATSAPP)</label>
+                  <input 
+                    type="tel" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors"
+                    placeholder="Ej. 521234567890" 
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
                   />
                 </div>
 

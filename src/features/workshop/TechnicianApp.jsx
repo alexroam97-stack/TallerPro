@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight } from 'lucide-react';
 import { getTickets, addEventToTicket, getTicketEvents } from '../../services/mockDb';
+import { generateWhatsAppLink } from '../../services/notifications';
+import { MessageSquare } from 'lucide-react';
 
 export default function TechnicianApp() {
   const navigate = useNavigate();
@@ -195,7 +197,26 @@ export default function TechnicianApp() {
             </div>
             <h2 className="text-5xl font-black text-accent-success tracking-tighter mb-4">¡ÉXITO!</h2>
             <p className="text-xl text-gray-400 font-bold uppercase tracking-widest">Estado Actualizado</p>
-            <p className="text-gray-600 mt-2">El cliente ha sido notificado automáticamente.</p>
+            
+            {selectedTicket?.phone && (
+              <a 
+                href={generateWhatsAppLink(
+                  selectedTicket.phone, 
+                  selectedTicket.client, 
+                  selectedTicket.vehicle, 
+                  getNextStepName(), 
+                  selectedTicket.id
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-8 btn-premium bg-accent-success/20 border-accent-success text-accent-success py-4 px-8 flex items-center gap-3 animate-pulse"
+              >
+                <MessageSquare size={24} />
+                NOTIFICAR POR WHATSAPP
+              </a>
+            )}
+            
+            <p className="text-gray-600 mt-6 font-medium">Redirigiendo al inicio...</p>
           </div>
         )}
       </main>

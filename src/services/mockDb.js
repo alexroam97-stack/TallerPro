@@ -12,7 +12,8 @@ const defaultTickets = [
     events: [1], 
     photos: {},
     items: [],
-    billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' }
+    billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
+    phone: '521234567890'
   },
   { 
     id: 'TKT-Z493', 
@@ -26,7 +27,8 @@ const defaultTickets = [
       { id: 1, desc: 'Reparación de Fascia Trasera', qty: 1, price: 4500, type: 'Mano de Obra', satKey: '78181500' },
       { id: 2, desc: 'Pintura Bicapa (Color Match)', qty: 1, price: 3200, type: 'Refacción', satKey: '31211500' }
     ],
-    billingInfo: { rfc: 'XAXX010101000', zip: '06600', regime: '612', usage: 'G03' }
+    billingInfo: { rfc: 'XAXX010101000', zip: '06600', regime: '612', usage: 'G03' },
+    phone: '521987654321'
   },
 ];
 
@@ -39,7 +41,7 @@ export const getTickets = () => {
   return JSON.parse(data);
 };
 
-export const addTicket = (client, vehicle, serviceType = 'Mecánica') => {
+export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = '') => {
   const tickets = getTickets();
   // Generar ID no secuencial para evitar enumeración
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -48,6 +50,7 @@ export const addTicket = (client, vehicle, serviceType = 'Mecánica') => {
     id: newId,
     client: client, // En producción, esto debería estar encriptado
     vehicle,
+    phone,
     serviceType,
     status: 'Recepción',
     events: [1], // Start with event 1 completed
