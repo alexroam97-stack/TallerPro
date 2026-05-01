@@ -3,8 +3,31 @@
 const DB_KEY = 'tallerpro_tickets';
 
 const defaultTickets = [
-  { id: 'TKT-X821', client: 'Juan Pérez', vehicle: 'Toyota Corolla 2020', serviceType: 'Mecánica', status: 'Recepción', events: [1], photos: {} },
-  { id: 'TKT-Z493', client: 'María Gómez', vehicle: 'Honda Civic 2019', serviceType: 'Hojalatería y Pintura', status: 'Pintura', events: [1, 2, 3], photos: {} },
+  { 
+    id: 'TKT-X821', 
+    client: 'Juan Pérez', 
+    vehicle: 'Toyota Corolla 2020', 
+    serviceType: 'Mecánica', 
+    status: 'Recepción', 
+    events: [1], 
+    photos: {},
+    items: [],
+    billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' }
+  },
+  { 
+    id: 'TKT-Z493', 
+    client: 'María Gómez', 
+    vehicle: 'Honda Civic 2019', 
+    serviceType: 'Hojalatería y Pintura', 
+    status: 'Pintura', 
+    events: [1, 2, 3], 
+    photos: {},
+    items: [
+      { id: 1, desc: 'Reparación de Fascia Trasera', qty: 1, price: 4500, type: 'Mano de Obra', satKey: '78181500' },
+      { id: 2, desc: 'Pintura Bicapa (Color Match)', qty: 1, price: 3200, type: 'Refacción', satKey: '31211500' }
+    ],
+    billingInfo: { rfc: 'XAXX010101000', zip: '06600', regime: '612', usage: 'G03' }
+  },
 ];
 
 export const getTickets = () => {
@@ -28,7 +51,9 @@ export const addTicket = (client, vehicle, serviceType = 'Mecánica') => {
     serviceType,
     status: 'Recepción',
     events: [1], // Start with event 1 completed
-    photos: {}
+    photos: {},
+    items: [],
+    billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' }
   };
   tickets.push(newTicket);
   localStorage.setItem(DB_KEY, JSON.stringify(tickets));
@@ -73,4 +98,16 @@ export const getTicketEvents = (ticketId) => {
 
 export const getTicket = (ticketId) => {
   return getTickets().find(t => t.id === ticketId) || null;
+};
+
+export const updateTicketBilling = (ticketId, { items, billingInfo }) => {
+  const tickets = getTickets();
+  const index = tickets.findIndex(t => t.id === ticketId);
+  if (index > -1) {
+    if (items) tickets[index].items = items;
+    if (billingInfo) tickets[index].billingInfo = billingInfo;
+    localStorage.setItem(DB_KEY, JSON.stringify(tickets));
+    return tickets[index];
+  }
+  return null;
 };

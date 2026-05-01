@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt } from 'lucide-react';
 import { getTickets, addTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import { useAuth } from '../../skills/security';
+import Billing from './Billing';
 
 export default function ShopDashboard() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function ShopDashboard() {
   const [newClient, setNewClient] = useState('');
   const [newVehicle, setNewVehicle] = useState('');
   const [newServiceType, setNewServiceType] = useState('Mecánica');
+  const [selectedBillingTicket, setSelectedBillingTicket] = useState(null);
 
   useEffect(() => {
     setTickets(getTickets());
@@ -146,6 +148,13 @@ export default function ShopDashboard() {
                             <QrCode size={16} />
                             QR
                           </button>
+                          <button 
+                            onClick={() => setSelectedBillingTicket(ticket)}
+                            className="flex items-center gap-2 text-sm font-bold text-accent-success hover:text-white transition-colors"
+                          >
+                            <Receipt size={16} />
+                            BILLING
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -268,6 +277,18 @@ export default function ShopDashboard() {
               <p className="text-sm text-gray-500 font-medium">El técnico puede escanear este código para acceder a la orden de trabajo.</p>
             </div>
           </div>
+        )}
+
+        {/* Modal Billing */}
+        {selectedBillingTicket && (
+          <Billing 
+            ticket={selectedBillingTicket} 
+            onClose={() => setSelectedBillingTicket(null)} 
+            onUpdate={(updated) => {
+              setTickets(tickets.map(t => t.id === updated.id ? updated : t));
+              setSelectedBillingTicket(updated);
+            }}
+          />
         )}
       </main>
     </div>
