@@ -68,7 +68,10 @@ export default function LandingPage() {
               Comenzar Ahora
               <ArrowRight className="inline-block ml-2 group-hover:translate-x-1 transition-transform" />
             </button>
-            <button className="btn-secondary text-lg" onClick={() => navigate('/tech')}>
+            <button 
+              className="btn-secondary text-lg" 
+              onClick={() => user ? navigate('/tech') : setShowLogin(true)}
+            >
               App del Técnico
             </button>
           </div>
