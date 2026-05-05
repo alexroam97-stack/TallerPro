@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check } from 'lucide-react';
 import { getTickets, addTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import { useAuth } from '../../skills/security';
@@ -130,9 +130,21 @@ export default function ShopDashboard() {
                       <td className="px-6 py-6 text-gray-400 font-medium">{ticket.vehicle}</td>
                       <td className="px-6 py-6 text-xs text-gray-500">{ticket.serviceType || 'Mecánica'}</td>
                       <td className="px-6 py-6">
-                        <span className="px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
-                          {ticket.status.toUpperCase()}
-                        </span>
+                        <div className="flex flex-col gap-2 items-start">
+                          <span className="px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
+                            {ticket.status.toUpperCase()}
+                          </span>
+                          {ticket.budgetStatus === 'approved' && (
+                            <span className="text-[10px] font-bold text-accent-success flex items-center gap-1">
+                              <Check size={12}/> PRESUPUESTO OK
+                            </span>
+                          )}
+                          {ticket.budgetStatus === 'declined' && (
+                            <span className="text-[10px] font-bold text-red-400 flex items-center gap-1">
+                              <X size={12}/> DECLINADO
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-6">
                         <div className="flex gap-4">

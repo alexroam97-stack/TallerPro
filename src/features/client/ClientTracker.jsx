@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download } from 'lucide-react';
-import { getTicket } from '../../services/mockDb';
+import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle } from 'lucide-react';
+import { getTicket, updateBudgetStatus } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 
@@ -15,6 +15,17 @@ export default function ClientTracker() {
       setTicket(getTicket(ticketId));
     }
   }, [ticketId]);
+
+  const handleBudgetAction = (status) => {
+    updateBudgetStatus(ticketId, status);
+    setTicket({ ...ticket, budgetStatus: status });
+    
+    // Simular notificación al taller vía WhatsApp
+    const shopPhone = "526633040096"; // Número del taller
+    const actionText = status === 'approved' ? 'ACEPTADO' : 'DECLINADO';
+    const message = `Hola, soy el cliente del ticket ${ticketId} (${ticket.vehicle}). He ${actionText} el presupuesto.`;
+    window.open(`https://wa.me/${shopPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
 
   const mechanicalEvents = [
     { id: 1, title: 'Recepción del Vehículo', time: 'Ingresado', desc: 'El vehículo ha sido recibido y el inventario completado.', icon: <Check size={18} /> },
@@ -175,8 +186,35 @@ export default function ClientTracker() {
                   className="btn-premium flex items-center gap-2 text-sm py-3 px-6 shadow-ui"
                 >
                   <Download size={18} />
-                  DESCARGAR PRESUPUESTO
+                  DESCARGAR
                 </button>
+              </div>
+
+              {/* Acciones de Aprobación */}
+              <div className="p-6 bg-white/5 flex flex-col items-center justify-center gap-4">
+                {ticket.budgetStatus === 'pending' ? (
+                  <>
+                    <p className="text-gray-300 font-bold mb-2">¿Autorizas este presupuesto?</p>
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => handleBudgetAction('approved')}
+                        className="btn-premium !bg-accent-success/20 !border-accent-success !text-accent-success !from-transparent !to-transparent border py-3 px-8 text-sm"
+                      >
+                        <Check size={18} className="inline mr-2" /> ACEPTAR REPARACIÓN
+                      </button>
+                      <button 
+                        onClick={() => handleBudgetAction('declined')}
+                        className="btn-secondary !border-red-500/50 !text-red-400 py-3 px-8 text-sm hover:!bg-red-500/10"
+                      >
+                        <XCircle size={18} className="inline mr-2" /> DECLINAR
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`px-6 py-4 rounded-xl font-bold border ${ticket.budgetStatus === 'approved' ? 'bg-accent-success/10 border-accent-success text-accent-success' : 'bg-red-500/10 border-red-500 text-red-400'}`}>
+                    {ticket.budgetStatus === 'approved' ? 'PRESUPUESTO AUTORIZADO' : 'PRESUPUESTO DECLINADO'}
+                  </div>
+                )}
               </div>
             </div>
           </div>

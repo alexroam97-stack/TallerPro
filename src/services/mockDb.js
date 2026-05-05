@@ -13,7 +13,8 @@ const defaultTickets = [
     photos: {},
     items: [],
     billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
-    phone: '521234567890'
+    phone: '521234567890',
+    budgetStatus: 'pending' // pending, approved, declined
   },
   { 
     id: 'TKT-Z493', 
@@ -28,7 +29,8 @@ const defaultTickets = [
       { id: 2, desc: 'Pintura Bicapa (Color Match)', qty: 1, price: 3200, type: 'Refacción', satKey: '31211500' }
     ],
     billingInfo: { rfc: 'XAXX010101000', zip: '06600', regime: '612', usage: 'G03' },
-    phone: '521987654321'
+    phone: '521987654321',
+    budgetStatus: 'pending'
   },
 ];
 
@@ -56,7 +58,8 @@ export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = ''
     events: [1], // Start with event 1 completed
     photos: {},
     items: [],
-    billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' }
+    billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
+    budgetStatus: 'pending'
   };
   tickets.push(newTicket);
   localStorage.setItem(DB_KEY, JSON.stringify(tickets));
@@ -109,6 +112,17 @@ export const updateTicketBilling = (ticketId, { items, billingInfo }) => {
   if (index > -1) {
     if (items) tickets[index].items = items;
     if (billingInfo) tickets[index].billingInfo = billingInfo;
+    localStorage.setItem(DB_KEY, JSON.stringify(tickets));
+    return tickets[index];
+  }
+  return null;
+};
+
+export const updateBudgetStatus = (ticketId, status) => {
+  const tickets = getTickets();
+  const index = tickets.findIndex(t => t.id === ticketId);
+  if (index > -1) {
+    tickets[index].budgetStatus = status;
     localStorage.setItem(DB_KEY, JSON.stringify(tickets));
     return tickets[index];
   }
