@@ -10,6 +10,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { loginWithGoogle, user } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const [ticketSearch, setTicketSearch] = useState('');
 
   const handleGoogleSuccess = (credentialResponse) => {
     if (loginWithGoogle(credentialResponse)) {
@@ -74,6 +75,27 @@ export default function LandingPage() {
             >
               App del Técnico
             </button>
+          </div>
+
+          {/* Client Search Section */}
+          <div className="pt-16 animate-fade-in-up [animation-delay:800ms]">
+            <div className="liquid-glass max-w-xl mx-auto p-2 rounded-2xl flex items-center gap-2 border-white/20 shadow-ui group focus-within:border-accent-primary/50 transition-all">
+              <input 
+                type="text" 
+                placeholder="ID de tu Ticket (Ej: TKT-X821)"
+                className="flex-1 bg-transparent border-none outline-none px-6 py-3 text-lg font-medium placeholder:text-gray-500 uppercase"
+                value={ticketSearch}
+                onChange={(e) => setTicketSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && ticketSearch && navigate(`/tracker/${ticketSearch.toUpperCase()}`)}
+              />
+              <button 
+                onClick={() => ticketSearch && navigate(`/tracker/${ticketSearch.toUpperCase()}`)}
+                className="bg-accent-primary text-black px-8 py-3 rounded-xl font-black text-sm tracking-widest hover:bg-white transition-all active:scale-95"
+              >
+                CONSULTAR ESTATUS
+              </button>
+            </div>
+            <p className="text-gray-500 text-sm mt-4 font-medium italic">¿No tienes tu ID? Solicítalo a tu asesor por WhatsApp.</p>
           </div>
         </div>
 
