@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Clock, Wrench, ChevronLeft, Car } from 'lucide-react';
+import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download } from 'lucide-react';
 import { getTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
@@ -116,6 +116,71 @@ export default function ClientTracker() {
             </div>
           ))}
         </div>
+
+        {/* Budget Section */}
+        {ticket?.items && ticket.items.length > 0 && (
+          <div className="mt-16 animate-fade-in-up [animation-delay:600ms]">
+            <div className="flex items-center gap-3 mb-6">
+              <Receipt className="text-accent-primary" size={28} />
+              <h2 className="text-2xl font-black tracking-tight">Presupuesto y Conceptos</h2>
+            </div>
+            
+            <div className="card-morphism overflow-hidden p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-white/5 text-gray-500 font-bold uppercase text-[10px] tracking-widest">
+                    <tr>
+                      <th className="px-6 py-4">Descripción</th>
+                      <th className="px-6 py-4 text-right">Cantidad</th>
+                      <th className="px-6 py-4 text-right">Precio</th>
+                      <th className="px-6 py-4 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {ticket.items.map(item => (
+                      <tr key={item.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-bold">{item.desc}</div>
+                          <div className="text-[10px] text-gray-400">{item.type.toUpperCase()}</div>
+                        </td>
+                        <td className="px-6 py-4 text-right font-medium">{item.qty}</td>
+                        <td className="px-6 py-4 text-right font-medium">${item.price.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right font-bold text-accent-primary">${(item.qty * item.price).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-white/5 font-bold">
+                    <tr>
+                      <td colSpan="3" className="px-6 py-4 text-right text-gray-400 uppercase tracking-widest text-xs">Subtotal</td>
+                      <td className="px-6 py-4 text-right">${ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan="3" className="px-6 py-2 text-right text-gray-400 uppercase tracking-widest text-xs">IVA (16%)</td>
+                      <td className="px-6 py-2 text-right">${(ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0) * 0.16).toLocaleString()}</td>
+                    </tr>
+                    <tr className="text-lg">
+                      <td colSpan="3" className="px-6 py-6 text-right text-white uppercase tracking-tighter font-black">Total a Pagar</td>
+                      <td className="px-6 py-6 text-right text-accent-primary font-black">
+                        ${(ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0) * 1.16).toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              
+              <div className="p-6 bg-accent-primary/10 border-t border-white/10 flex flex-col md:flex-row gap-4 items-center justify-between">
+                <p className="text-sm text-gray-400 font-medium italic">Precios sujetos a cambios sin previo aviso.</p>
+                <button 
+                  onClick={() => window.print()}
+                  className="btn-premium flex items-center gap-2 text-sm py-3 px-6 shadow-ui"
+                >
+                  <Download size={18} />
+                  DESCARGAR PRESUPUESTO
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <WhatsAppButton />
