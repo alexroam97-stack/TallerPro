@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp } from 'lucide-react';
 import { getTickets, addTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import { useAuth } from '../../skills/security';
 import Billing from './Billing';
+import InteractiveVehicleSVG from './InteractiveVehicleSVG';
+import Analytics from './Analytics';
 
 export default function ShopDashboard() {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ export default function ShopDashboard() {
   const [newVehicle, setNewVehicle] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newServiceType, setNewServiceType] = useState('Mecánica');
+  const [newDamagedPanels, setNewDamagedPanels] = useState([]);
   const [selectedBillingTicket, setSelectedBillingTicket] = useState(null);
 
   useEffect(() => {
@@ -27,12 +30,23 @@ export default function ShopDashboard() {
     e.preventDefault();
     if (!newClient || !newVehicle) return;
     const newTicket = addTicket(newClient, newVehicle, newServiceType, newPhone);
-    setTickets([...tickets, newTicket]);
+    if (newDamagedPanels.length > 0) {
+      newTicket.damagedPanels = newDamagedPanels;
+      // update immediately to DB
+      const allTix = getTickets();
+      const idx = allTix.findIndex(t => t.id === newTicket.id);
+      if(idx > -1) {
+        allTix[idx].damagedPanels = newDamagedPanels;
+        localStorage.setItem('tallerpro_tickets', JSON.stringify(allTix));
+      }
+    }
+    setTickets([...tickets.filter(t => t.id !== newTicket.id), newTicket]);
     setIsModalOpen(false);
     setNewClient('');
     setNewVehicle('');
     setNewPhone('');
     setNewServiceType('Mecánica');
+    setNewDamagedPanels([]);
   };
 
   return (
@@ -63,6 +77,13 @@ export default function ShopDashboard() {
           >
             <Users size={20} />
             Clientes
+          </button>
+          <button 
+            onClick={() => setActiveTab('analiticas')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${activeTab === 'analiticas' ? 'bg-accent-primary/20 text-accent-primary border border-accent-primary/30' : 'text-gray-400 hover:bg-white/5 border border-transparent'}`}
+          >
+            <TrendingUp size={20} />
+            Analíticas
           </button>
           <button onClick={() => alert('Próximamente')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 transition-all">
             <Settings size={20} />
@@ -177,6 +198,8 @@ export default function ShopDashboard() {
               </table>
             </div>
           </div>
+        ) : activeTab === 'analiticas' ? (
+          <Analytics />
         ) : (
           <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
             <div className="overflow-x-auto">
@@ -271,6 +294,18 @@ export default function ShopDashboard() {
                     </button>
                   </div>
                 </div>
+
+                {newServiceType === 'Hojalatería y Pintura' && (
+                  <div className="space-y-2 pt-4 border-t border-white/10 animate-fade-in-up">
+                    <label className="text-sm font-bold text-gray-400 ml-1 uppercase">Mapeo de Daños Inicial</label>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                      <InteractiveVehicleSVG 
+                        damagedPanels={newDamagedPanels} 
+                        onChange={setNewDamagedPanels} 
+                      />
+                    </div>
+                  </div>
+                )}
                 
                 <button type="submit" className="btn-premium w-full py-4 text-lg mt-4">
                   Generar Orden de Trabajo

@@ -1,9 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Upload, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight } from 'lucide-react';
+import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Image as ImageIcon } from 'lucide-react';
 import { getTickets, addEventToTicket, getTicketEvents } from '../../services/mockDb';
 import { generateWhatsAppLink } from '../../services/notifications';
-import { MessageSquare } from 'lucide-react';
+import { compressImage } from '../../skills/imageUtils';
+
+const INVENTORY_ITEMS = [
+  { id: 'gasolina', label: 'Gasolina (>50%)' },
+  { id: 'refaccion', label: 'Llanta Refacción' },
+  { id: 'gato', label: 'Gato Hidráulico' },
+  { id: 'herramienta', label: 'Herr. Básica' },
+  { id: 'estereo', label: 'Estéreo / Pantalla' }
+];
+
+const PHOTO_SLOTS = [
+  { id: 'frontal', label: 'Frontal' },
+  { id: 'trasera', label: 'Trasera' },
+  { id: 'lat_izq', label: 'Lateral Izq.' },
+  { id: 'lat_der', label: 'Lateral Der.' },
+  { id: 'odometro', label: 'Tablero/Odómetro' }
+];
 
 export default function TechnicianApp() {
   const navigate = useNavigate();
@@ -11,8 +27,13 @@ export default function TechnicianApp() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [mockTickets, setMockTickets] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
-  const [photoBase64, setPhotoBase64] = useState(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  
+  const [photos, setPhotos] = useState({});
+  const [inventory, setInventory] = useState({});
+  
   const fileInputRef = useRef(null);
+  const [activeSlot, setActiveSlot] = useState(null);
 
   useEffect(() => {
     setMockTickets(getTickets());
@@ -20,6 +41,8 @@ export default function TechnicianApp() {
 
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
+    setPhotos({});
+    setInventory(INVENTORY_ITEMS.reduce((acc, item) => ({...acc, [item.id]: false}), {}));
     setStep(2);
   };
 
@@ -35,20 +58,50 @@ export default function TechnicianApp() {
     }, 1500);
   };
 
+  const handleSlotClick = (slotId) => {
+    setActiveSlot(slotId);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleCapture = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !activeSlot) return;
+
+    setIsCompressing(true);
+    try {
+      const compressedBase64 = await compressImage(file);
+      setPhotos(prev => ({ ...prev, [activeSlot]: compressedBase64 }));
+    } catch (error) {
+      console.error("Error compressing image", error);
+      alert("Error al procesar la imagen.");
+    } finally {
+      setIsCompressing(false);
+      setActiveSlot(null);
+    }
+  };
+
+  const toggleInventory = (id) => {
+    setInventory(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const handleSimulateUpload = () => {
     if (selectedTicket) {
       const currentEvents = getTicketEvents(selectedTicket.id);
       const nextEventId = currentEvents.length + 1;
-      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5), photoBase64);
+      // In a real app, we would send the array of photos and the inventory JSON
+      // For this demo, we take the first available photo to satisfy the single photo per event logic
+      const firstAvailablePhoto = Object.values(photos)[0] || null;
+      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5), firstAvailablePhoto);
     }
     
     setStep(3);
     setTimeout(() => {
       setStep(1);
       setSelectedTicket(null);
-      setPhotoBase64(null);
       setMockTickets(getTickets());
-    }, 3000);
+    }, 4000);
   };
 
   const getNextStepName = () => {
@@ -63,20 +116,10 @@ export default function TechnicianApp() {
     return stages[nextEventId - 1];
   };
 
-  const handleCapture = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoBase64(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const isUploadReady = Object.keys(photos).length > 0;
 
   return (
     <div className="relative min-h-screen flex flex-col text-white overflow-hidden selection:bg-accent-primary/30">
-      {/* Background */}
       <img 
         src="/assets/bg-internal.png" 
         className="full-screen-bg"
@@ -84,7 +127,7 @@ export default function TechnicianApp() {
       />
       <div className="bg-glow" />
 
-      <main className="flex-1 p-6 flex flex-col relative z-10 max-w-lg mx-auto w-full">
+      <main className="flex-1 p-4 md:p-6 flex flex-col relative z-10 max-w-lg mx-auto w-full">
         {step === 1 && (
           <div className="animate-fade-in flex flex-col h-full">
             <button 
@@ -98,7 +141,7 @@ export default function TechnicianApp() {
             
             <button 
               onClick={handleScanQR} 
-              className="relative overflow-hidden w-full aspect-square liquid-glass rounded-[3rem] mb-12 flex flex-col items-center justify-center gap-4 group active:scale-95 transition-transform shadow-ui"
+              className="relative overflow-hidden w-full aspect-square liquid-glass rounded-[3rem] mb-8 flex flex-col items-center justify-center gap-4 group active:scale-95 transition-transform shadow-ui"
             >
               <div className="p-8 rounded-full bg-accent-primary/20 group-hover:bg-accent-primary/30 transition-colors">
                 <QrCode size={80} className="text-accent-primary" />
@@ -118,18 +161,18 @@ export default function TechnicianApp() {
               }
             `}</style>
 
-            <div className="text-center text-gray-500 font-bold tracking-widest mb-6">O SELECCIONA DE LA LISTA</div>
+            <div className="text-center text-gray-500 font-bold tracking-widest mb-4">O SELECCIONA DE LA LISTA</div>
             
             <div className="space-y-4 pb-12">
               {mockTickets.map(t => (
                 <button 
                   key={t.id} 
-                  className="w-full card-morphism flex justify-between items-center group active:scale-95" 
+                  className="w-full card-morphism flex justify-between items-center group active:scale-95 text-left" 
                   onClick={() => handleSelectTicket(t)}
                 >
-                  <div className="text-left">
+                  <div>
                     <div className="text-2xl font-black text-accent-primary">{t.id}</div>
-                    <div className="text-lg text-gray-400 font-bold">{t.vehicle}</div>
+                    <div className="text-sm text-gray-400 font-bold">{t.vehicle}</div>
                   </div>
                   <ArrowRight className="text-gray-600 group-hover:text-accent-primary transition-colors" />
                 </button>
@@ -142,49 +185,87 @@ export default function TechnicianApp() {
           <div className="animate-fade-in flex flex-col h-full">
             <button 
               onClick={() => setStep(1)}
-              className="flex items-center gap-2 text-gray-400 font-bold mb-8 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-gray-400 font-bold mb-4 hover:text-white transition-colors"
             >
               <ChevronLeft size={24} /> VOLVER
             </button>
 
-            <div className="mb-8">
-              <h2 className="text-5xl font-black text-accent-primary tracking-tighter">{selectedTicket?.id}</h2>
-              <p className="text-xl text-gray-400 font-bold uppercase tracking-tight">{selectedTicket?.vehicle}</p>
+            <div className="mb-6">
+              <h2 className="text-4xl font-black text-accent-primary tracking-tighter">{selectedTicket?.id}</h2>
+              <p className="text-lg text-gray-400 font-bold uppercase tracking-tight">{selectedTicket?.vehicle}</p>
             </div>
 
-            <div className="flex-1 flex flex-col gap-8">
-              <div 
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                className="flex-1 liquid-glass rounded-[3rem] border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-4 text-gray-500 hover:border-accent-primary/50 hover:bg-white/5 transition-all cursor-pointer group shadow-ui relative overflow-hidden"
-              >
-                {photoBase64 ? (
-                  <img src={photoBase64} alt="Evidencia" className="absolute inset-0 w-full h-full object-cover" />
-                ) : (
-                  <>
-                    <div className="p-10 rounded-full bg-white/5 group-hover:bg-accent-primary/10 transition-colors">
-                      <Camera size={100} className="group-hover:text-accent-primary transition-colors" />
+            <div className="flex-1 overflow-y-auto pb-24 space-y-8">
+              
+              {/* Photo Grid */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-black tracking-tight uppercase">Evidencia Visual</h3>
+                  {isCompressing && <span className="text-xs text-accent-primary animate-pulse font-bold">Procesando...</span>}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {PHOTO_SLOTS.map(slot => (
+                    <div 
+                      key={slot.id}
+                      onClick={() => !isCompressing && handleSlotClick(slot.id)}
+                      className={`relative aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all overflow-hidden ${photos[slot.id] ? 'border-accent-primary border-solid' : 'border-dashed border-white/20 bg-white/5 hover:bg-white/10'}`}
+                    >
+                      {photos[slot.id] ? (
+                        <>
+                          <img src={photos[slot.id]} alt={slot.label} className="absolute inset-0 w-full h-full object-cover" />
+                          <div className="absolute inset-x-0 bottom-0 bg-black/60 p-1 text-center backdrop-blur-sm">
+                            <span className="text-[10px] font-bold text-accent-primary uppercase truncate block px-1">{slot.label}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Camera size={24} className="text-gray-500" />
+                          <span className="text-xs font-bold text-gray-500 uppercase px-2 text-center leading-tight">{slot.label}</span>
+                        </>
+                      )}
                     </div>
-                    <span className="text-xl font-black tracking-widest uppercase">CAPTURA DE EVIDENCIA</span>
-                  </>
-                )}
-              </div>
+                  ))}
+                </div>
+              </section>
 
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                ref={fileInputRef} 
-                className="hidden" 
-                onChange={handleCapture} 
-              />
+              {/* Binary Toggles Inventory */}
+              <section className="card-morphism !bg-white/5 !border-white/10">
+                <h3 className="text-xl font-black tracking-tight uppercase mb-4">Checklist Rápido</h3>
+                <div className="space-y-1">
+                  {INVENTORY_ITEMS.map(item => (
+                    <div 
+                      key={item.id} 
+                      className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                      onClick={() => toggleInventory(item.id)}
+                    >
+                      <span className="font-bold text-gray-300 text-sm">{item.label}</span>
+                      <div className={`w-12 h-6 rounded-full transition-colors relative flex items-center ${inventory[item.id] ? 'bg-accent-success' : 'bg-gray-700'}`}>
+                        <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${inventory[item.id] ? 'translate-x-7' : 'translate-x-1'}`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
+            </div>
+
+            <input 
+              type="file" 
+              accept="image/*" 
+              capture="environment" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleCapture} 
+            />
+
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#050B14] via-[#050B14] to-transparent z-20">
               <button 
-                className={`btn-premium py-8 text-2xl font-black tracking-widest flex items-center justify-center gap-4 shadow-ui transition-all ${!photoBase64 ? 'opacity-50 cursor-not-allowed grayscale' : ''}`} 
+                className={`btn-premium w-full max-w-lg mx-auto py-5 text-xl font-black tracking-widest flex items-center justify-center gap-3 shadow-ui transition-all ${!isUploadReady ? 'opacity-50 cursor-not-allowed grayscale' : ''}`} 
                 onClick={handleSimulateUpload}
-                disabled={!photoBase64}
+                disabled={!isUploadReady || isCompressing}
               >
-                <Upload size={32} />
-                {photoBase64 ? `SUBIR: ${getNextStepName().toUpperCase()}` : 'TOMA UNA FOTO'}
+                <CheckCircle2 size={24} />
+                {isUploadReady ? 'GUARDAR Y AVANZAR' : 'FALTAN FOTOS'}
               </button>
             </div>
           </div>
@@ -223,4 +304,3 @@ export default function TechnicianApp() {
     </div>
   );
 }
-

@@ -14,7 +14,10 @@ const defaultTickets = [
     items: [],
     billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
     phone: '521234567890',
-    budgetStatus: 'pending' // pending, approved, declined
+    budgetStatus: 'pending',
+    damagedPanels: [],
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
+    closedAt: null
   },
   { 
     id: 'TKT-Z493', 
@@ -30,7 +33,10 @@ const defaultTickets = [
     ],
     billingInfo: { rfc: 'XAXX010101000', zip: '06600', regime: '612', usage: 'G03' },
     phone: '521987654321',
-    budgetStatus: 'pending'
+    budgetStatus: 'approved',
+    damagedPanels: [{ panelId: 'rear-bumper', damageLevel: 'HIGH' }, { panelId: 'trunk', damageLevel: 'MEDIUM' }],
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
+    closedAt: new Date(Date.now() - 86400000 * 1).toISOString() // 1 day ago (closed)
   },
 ];
 
@@ -59,7 +65,10 @@ export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = ''
     photos: {},
     items: [],
     billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
-    budgetStatus: 'pending'
+    budgetStatus: 'pending',
+    damagedPanels: [],
+    createdAt: new Date().toISOString(),
+    closedAt: null
   };
   tickets.push(newTicket);
   localStorage.setItem(DB_KEY, JSON.stringify(tickets));
@@ -92,6 +101,11 @@ export const addEventToTicket = (ticketId, eventId, photoBase64 = null) => {
     };
     tickets[ticketIndex].status = statusMap[eventId] || tickets[ticketIndex].status;
     
+    // Auto-close ticket when reaching 'Entrega' (step 5)
+    if (eventId === 5 && !tickets[ticketIndex].closedAt) {
+      tickets[ticketIndex].closedAt = new Date().toISOString();
+    }
+
     localStorage.setItem(DB_KEY, JSON.stringify(tickets));
   }
 };
@@ -123,6 +137,17 @@ export const updateBudgetStatus = (ticketId, status) => {
   const index = tickets.findIndex(t => t.id === ticketId);
   if (index > -1) {
     tickets[index].budgetStatus = status;
+    localStorage.setItem(DB_KEY, JSON.stringify(tickets));
+    return tickets[index];
+  }
+  return null;
+};
+
+export const updateDamagedPanels = (ticketId, panels) => {
+  const tickets = getTickets();
+  const index = tickets.findIndex(t => t.id === ticketId);
+  if (index > -1) {
+    tickets[index].damagedPanels = panels;
     localStorage.setItem(DB_KEY, JSON.stringify(tickets));
     return tickets[index];
   }
