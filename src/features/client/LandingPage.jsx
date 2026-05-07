@@ -117,7 +117,7 @@ export default function LandingPage() {
       </main>
 
       {/* 2. Product Showcase ("Foto y Click") */}
-      <section className="relative z-10 py-20 bg-black/40 border-y border-white/5 backdrop-blur-md">
+      <section className="relative z-10 py-20 bg-black/40 border-y border-white/5">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8 animate-fade-in-up">
@@ -153,12 +153,13 @@ export default function LandingPage() {
             </div>
             <div className="relative animate-fade-in-up [animation-delay:200ms] flex justify-center">
               <div className="relative w-full max-w-sm">
-                <div className="absolute inset-0 bg-accent-primary/20 blur-[100px] rounded-full"></div>
+                <div className="absolute inset-0 bg-accent-primary/20 blur-[40px] rounded-full"></div>
                 {/* Mockup Image */}
                 <img 
                   src="/assets/app_mockup.png" 
+                  loading="lazy"
                   alt="TallerPro Mobile App Interface" 
-                  className="relative z-10 w-full h-auto drop-shadow-[0_20px_50px_rgba(0,242,255,0.3)] hover:scale-105 transition-transform duration-700"
+                  className="relative z-10 w-full h-auto shadow-[0_20px_50px_rgba(0,242,255,0.2)] rounded-3xl hover:scale-105 transition-transform duration-700"
                 />
               </div>
             </div>
