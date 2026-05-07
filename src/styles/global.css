@@ -19,8 +19,9 @@ body {
 
 @layer components {
   .liquid-glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.3);
+    transform: translateZ(0);
   }
 
   .shadow-ui {
@@ -78,5 +79,7 @@ body {
   height: 100%;
   object-fit: cover;
   z-index: -2;
-  filter: brightness(0.4) contrast(1.2);
+  opacity: 0.35;
+  transform: translateZ(0);
+  will-change: transform, opacity;
 }
