@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Zap, ArrowRight, Lock, CheckCircle2, Camera, MessageSquare, Smartphone } from 'lucide-react';
+import { ShieldCheck, Zap, ArrowRight, Lock, CheckCircle2, Camera, MessageSquare, Smartphone, X } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../skills/security';
 import Logo from '../../components/Logo';
@@ -10,18 +10,38 @@ const pricingPlans = [
   { 
     name: 'Básico', 
     price: '$499/mes', 
-    features: ['Órdenes ilimitadas', 'Fotos de recepción (5 max)', 'Mecánica general', 'Soporte por email'] 
+    features: [
+      'Órdenes ilimitadas (Mecánica y Carrocería)',
+      'Módulo de Presupuestos',
+      'Fotos de evidencia (5 max por orden)',
+      'Soporte por email'
+    ],
+    limitations: [
+      'Sin facturación electrónica'
+    ]
   },
   { 
     name: 'TallerPro', 
     price: '$999/mes', 
-    features: ['Todo lo del plan básico', 'Módulo interactivo de carrocería', 'Control de presupuestos', 'Notificaciones automáticas (WhatsApp)', 'Fotos ilimitadas'], 
+    features: [
+      'Todo lo del plan Básico, además:', 
+      'Facturación Electrónica automatizada',
+      'Módulo avanzado de Hojalatería (SVG)', 
+      'Notificaciones automáticas (WhatsApp)', 
+      'Fotos ilimitadas y Dashboard Analítico'
+    ], 
     popular: true 
   },
   { 
     name: 'Multi-Taller', 
     price: 'Personalizado', 
-    features: ['Múltiples sucursales', 'Reportes analíticos avanzados', 'Soporte prioritario 24/7', 'API Access'] 
+    features: [
+      'Todo lo del plan TallerPro, además:',
+      'Gestión de múltiples sucursales', 
+      'Reportes de rentabilidad avanzados', 
+      'Soporte técnico prioritario 24/7', 
+      'Integración vía API'
+    ] 
   }
 ];
 
@@ -224,6 +244,12 @@ export default function LandingPage() {
                     <li key={i} className="flex items-start gap-3 text-gray-300">
                       <CheckCircle2 size={20} className="text-accent-primary shrink-0 mt-0.5" />
                       <span>{feature}</span>
+                    </li>
+                  ))}
+                  {plan.limitations && plan.limitations.map((limit, i) => (
+                    <li key={`lim-${i}`} className="flex items-start gap-3 text-gray-500">
+                      <X size={20} className="text-red-500/50 shrink-0 mt-0.5" />
+                      <span className="line-through">{limit}</span>
                     </li>
                   ))}
                 </ul>
