@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package } from 'lucide-react';
 import { getTickets, addTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import { useAuth } from '../../skills/security';
 import Billing from './Billing';
 import InteractiveVehicleSVG from './InteractiveVehicleSVG';
 import Analytics from './Analytics';
+import PartsInventory from './PartsInventory';
 
 export default function ShopDashboard() {
   const navigate = useNavigate();
@@ -84,6 +85,13 @@ export default function ShopDashboard() {
           >
             <TrendingUp size={20} />
             Analíticas
+          </button>
+          <button 
+            onClick={() => setActiveTab('autopartes')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold ${activeTab === 'autopartes' ? 'bg-accent-primary/20 text-accent-primary border border-accent-primary/30' : 'text-gray-400 hover:bg-white/5 border border-transparent'}`}
+          >
+            <Package size={20} />
+            Autopartes
           </button>
           <button onClick={() => alert('Próximamente')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 transition-all">
             <Settings size={20} />
@@ -200,6 +208,8 @@ export default function ShopDashboard() {
           </div>
         ) : activeTab === 'analiticas' ? (
           <Analytics />
+        ) : activeTab === 'autopartes' ? (
+          <PartsInventory />
         ) : (
           <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
             <div className="overflow-x-auto">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle } from 'lucide-react';
-import { getTicket, updateBudgetStatus } from '../../services/mockDb';
+import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package } from 'lucide-react';
+import { getTicket, updateBudgetStatus, getParts } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 
@@ -9,10 +9,14 @@ export default function ClientTracker() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState(null);
+  const [parts, setParts] = useState([]);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   useEffect(() => {
     if (ticketId) {
       setTicket(getTicket(ticketId));
+      const allParts = getParts();
+      setParts(allParts.filter(p => p.ticketId === ticketId));
     }
   }, [ticketId]);
 
@@ -128,6 +132,90 @@ export default function ClientTracker() {
           ))}
         </div>
 
+        {/* Parts Section */}
+        {parts.length > 0 && (
+          <div className="mt-16 animate-fade-in-up [animation-delay:400ms]">
+            <div className="flex items-center gap-3 mb-6">
+              <Package className="text-accent-primary" size={28} />
+              <h2 className="text-2xl font-black tracking-tight">Refacciones y Control de Calidad</h2>
+            </div>
+            
+            <div className="space-y-4">
+              {parts.map(part => {
+                const total = part.qcChecked ? Object.keys(part.qcChecked).length : 0;
+                const active = part.qcChecked ? Object.values(part.qcChecked).filter(Boolean).length : 0;
+                const score = total > 0 ? Math.round((active / total) * 100) : 0;
+
+                return (
+                  <div key={part.id} className="card-morphism !bg-white/5 border-none p-6 shadow-ui relative overflow-hidden">
+                    {/* Background indicator */}
+                    <div className={`absolute top-0 right-0 w-24 h-24 rounded-full filter blur-3xl opacity-5 pointer-events-none -mr-8 -mt-8
+                      ${part.status === 'approved' ? 'bg-accent-success' : part.status === 'rejected' ? 'bg-red-500' : 'bg-amber-500'}`} 
+                    />
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 relative z-10">
+                      <div>
+                        <span className="text-[10px] font-bold text-accent-primary tracking-widest uppercase">{part.id}</span>
+                        <h3 className="text-lg font-black tracking-tight mt-0.5">{part.name}</h3>
+                        <p className="text-xs text-gray-400 font-bold uppercase">{part.brand}</p>
+                      </div>
+
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider self-start sm:self-center
+                        ${part.status === 'approved' ? 'bg-accent-success/10 border-accent-success/20 text-accent-success' : 
+                          part.status === 'rejected' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 
+                          'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}
+                      >
+                        {part.status === 'approved' ? 'CALIDAD APROBADA' : 
+                         part.status === 'rejected' ? 'RECHAZADA / REORDENANDO' : 
+                         'EN CAMINO / PENDIENTE'}
+                      </span>
+                    </div>
+
+                    {part.status !== 'pending' && (
+                      <div className="space-y-4 pt-4 border-t border-white/5 animate-fade-in relative z-10">
+                        <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Cumplimiento QC</p>
+                            <p className={`font-black ${part.status === 'approved' ? 'text-accent-success' : 'text-red-400'}`}>{score}% de Puntos Aprobados</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Inspeccionado Por</p>
+                            <p className="font-bold text-gray-300">{part.inspectedBy || 'Taller Técnico'}</p>
+                          </div>
+                        </div>
+
+                        {part.qcNotes && (
+                          <div className="p-3 bg-white/5 rounded-xl text-xs text-gray-300 border border-white/5 leading-relaxed font-medium">
+                            <p className="text-[9px] font-black text-accent-primary uppercase tracking-wider mb-1">Notas del Inspector</p>
+                            "{part.qcNotes}"
+                          </div>
+                        )}
+
+                        {part.photo && (
+                          <div className="space-y-1.5">
+                            <p className="text-[9px] font-black text-accent-primary uppercase tracking-wider">Evidencia de Arribo</p>
+                            <div className="relative rounded-2xl overflow-hidden border border-white/10 group cursor-pointer max-w-sm">
+                              <img 
+                                src={part.photo} 
+                                alt={part.name} 
+                                className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" 
+                                onClick={() => setSelectedPhoto(part.photo)}
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="px-3 py-1 bg-black/60 backdrop-blur-sm rounded-lg text-[10px] font-bold tracking-wider border border-white/10">AMPLIAR FOTO</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Budget Section */}
         {ticket?.items && ticket.items.length > 0 && (
           <div className="mt-16 animate-fade-in-up [animation-delay:600ms]">
@@ -220,6 +308,24 @@ export default function ClientTracker() {
           </div>
         )}
       </main>
+
+      {/* Zoom Photo Modal */}
+      {selectedPhoto && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="relative max-w-3xl w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="absolute top-4 right-4 p-2 bg-black/60 rounded-full border border-white/10 text-white hover:bg-white/10 transition-colors"
+              onClick={() => setSelectedPhoto(null)}
+            >
+              <XCircle size={28} />
+            </button>
+            <img src={selectedPhoto} alt="Refacción Zoom" className="max-h-[80vh] object-contain rounded-2xl border border-white/20 shadow-2xl" />
+          </div>
+        </div>
+      )}
 
       <WhatsAppButton />
     </div>

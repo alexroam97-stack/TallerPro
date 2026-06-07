@@ -153,3 +153,104 @@ export const updateDamagedPanels = (ticketId, panels) => {
   }
   return null;
 };
+
+const PARTS_DB_KEY = 'tallerpro_parts';
+
+const defaultParts = [
+  {
+    id: 'PRT-W912',
+    name: 'Amortiguadores Delanteros (Par)',
+    brand: 'Bilstein',
+    qty: 1,
+    vehicleCompatibility: 'Toyota Corolla 2020',
+    ticketId: 'TKT-X821',
+    status: 'approved',
+    qcNotes: 'Llegó en excelentes condiciones, empaque original sellado. Verificado con número de serie.',
+    photo: '',
+    qcChecked: { visual: true, packaging: true, compatibility: true, functional: true },
+    inspectedBy: 'Técnico Principal',
+    inspectedAt: new Date(Date.now() - 86400000).toISOString() // 1 day ago
+  },
+  {
+    id: 'PRT-K302',
+    name: 'Faro Principal Izquierdo',
+    brand: 'TYC',
+    qty: 1,
+    vehicleCompatibility: 'Honda Civic 2019',
+    ticketId: 'TKT-Z493',
+    status: 'rejected',
+    qcNotes: 'El faro llegó quebrado en el soporte inferior derecho. Se solicita devolución al proveedor.',
+    photo: '',
+    qcChecked: { visual: false, packaging: true, compatibility: true, functional: false },
+    inspectedBy: 'Técnico Carrocería',
+    inspectedAt: new Date(Date.now() - 86400000 * 2).toISOString() // 2 days ago
+  },
+  {
+    id: 'PRT-H741',
+    name: 'Bomba de Agua y empaque',
+    brand: 'Gates',
+    qty: 1,
+    vehicleCompatibility: 'Toyota Corolla 2020',
+    ticketId: 'TKT-X821',
+    status: 'pending',
+    qcNotes: '',
+    photo: '',
+    qcChecked: { visual: false, packaging: false, compatibility: false, functional: false },
+    inspectedBy: '',
+    inspectedAt: ''
+  }
+];
+
+export const getParts = () => {
+  const data = localStorage.getItem(PARTS_DB_KEY);
+  if (!data) {
+    localStorage.setItem(PARTS_DB_KEY, JSON.stringify(defaultParts));
+    return defaultParts;
+  }
+  return JSON.parse(data);
+};
+
+export const saveParts = (parts) => {
+  localStorage.setItem(PARTS_DB_KEY, JSON.stringify(parts));
+};
+
+export const addPart = (partData) => {
+  const parts = getParts();
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const newId = `PRT-${randomSuffix}`;
+  const newPart = {
+    id: newId,
+    name: partData.name,
+    brand: partData.brand || 'Genérica',
+    qty: parseInt(partData.qty) || 1,
+    vehicleCompatibility: partData.vehicleCompatibility || '',
+    ticketId: partData.ticketId || '',
+    status: partData.status || 'pending',
+    qcNotes: partData.qcNotes || '',
+    photo: partData.photo || '',
+    qcChecked: partData.qcChecked || { visual: false, packaging: false, compatibility: false, functional: false },
+    inspectedBy: partData.inspectedBy || '',
+    inspectedAt: partData.inspectedAt || ''
+  };
+  parts.push(newPart);
+  saveParts(parts);
+  return newPart;
+};
+
+export const updatePart = (partId, updatedFields) => {
+  const parts = getParts();
+  const index = parts.findIndex(p => p.id === partId);
+  if (index > -1) {
+    parts[index] = { ...parts[index], ...updatedFields };
+    saveParts(parts);
+    return parts[index];
+  }
+  return null;
+};
+
+export const deletePart = (partId) => {
+  const parts = getParts();
+  const filtered = parts.filter(p => p.id !== partId);
+  saveParts(filtered);
+  return true;
+};
