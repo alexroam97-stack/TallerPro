@@ -2,6 +2,46 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Receipt, FileText, Calculator } from 'lucide-react';
 import { updateTicketBilling } from '../../services/mockDb';
 
+const getSuggestedSatKey = (description, type, serviceType) => {
+  const desc = description.toLowerCase();
+  
+  if (type === 'Mano de Obra') {
+    if (serviceType === 'Hojalatería y Pintura' || desc.includes('pintar') || desc.includes('pintura') || desc.includes('hojalat') || desc.includes('hojalateria')) {
+      return '73181100'; // Servicios de acabado y pintura de superficies
+    }
+    return '78181500'; // Servicios de mantenimiento y reparación de vehículos (mecánica)
+  } else {
+    if (desc.includes('aceite') || desc.includes('lubricante')) {
+      return '15121500'; // Aceites y lubricantes
+    }
+    if (desc.includes('filtro')) {
+      return '40161500'; // Filtros
+    }
+    if (desc.includes('llanta') || desc.includes('neumatic') || desc.includes('rin')) {
+      return '25172500'; // Llantas y neumáticos
+    }
+    if (desc.includes('balata') || desc.includes('freno') || desc.includes('disco') || desc.includes('tambor') || desc.includes('caliper')) {
+      return '25171700'; // Sistemas de frenos y componentes
+    }
+    if (desc.includes('amortiguador') || desc.includes('suspension') || desc.includes('horquilla') || desc.includes('resorte') || desc.includes('bushing')) {
+      return '25172400'; // Sistemas de suspensión y componentes
+    }
+    if (desc.includes('bujia') || desc.includes('bobina') || desc.includes('distribuidor') || desc.includes('cable')) {
+      return '25173100'; // Componentes del motor (sistema de encendido)
+    }
+    if (desc.includes('bateria') || desc.includes('acumulador') || desc.includes('alternador')) {
+      return '26101100'; // Fuentes de energía (baterías)
+    }
+    if (desc.includes('pintura') || desc.includes('barniz') || desc.includes('transparente') || desc.includes('primer') || desc.includes('tinta')) {
+      return '31211500'; // Pinturas y recubrimientos
+    }
+    if (desc.includes('fascia') || desc.includes('defensa') || desc.includes('puerta') || desc.includes('cofre') || desc.includes('salpicadera') || desc.includes('costado') || desc.includes('parachoques') || desc.includes('espejo')) {
+      return '25171900'; // Componentes de carrocería
+    }
+    return '25170000'; // Componentes de transporte / Refacciones generales
+  }
+};
+
 export default function Billing({ ticket, onClose, onUpdate }) {
   const [items, setItems] = useState(ticket.items || []);
   const [billingInfo, setBillingInfo] = useState(ticket.billingInfo || {
@@ -16,7 +56,7 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     qty: 1,
     price: 0,
     type: 'Refacción',
-    satKey: '78181500'
+    satKey: '25170000'
   });
 
   const subtotal = items.reduce((acc, item) => acc + (item.qty * item.price), 0);
@@ -29,7 +69,7 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     const itemWithId = { ...newItem, id: Date.now() };
     const updatedItems = [...items, itemWithId];
     setItems(updatedItems);
-    setNewItem({ desc: '', qty: 1, price: 0, type: 'Refacción', satKey: '78181500' });
+    setNewItem({ desc: '', qty: 1, price: 0, type: 'Refacción', satKey: '25170000' });
     saveChanges(updatedItems, billingInfo);
   };
 
@@ -85,7 +125,11 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                     className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm"
                     placeholder="Ej. Kit de Afinación" 
                     value={newItem.desc}
-                    onChange={(e) => setNewItem({...newItem, desc: e.target.value})}
+                    onChange={(e) => {
+                      const newDesc = e.target.value;
+                      const suggested = getSuggestedSatKey(newDesc, newItem.type, ticket.serviceType);
+                      setNewItem({ ...newItem, desc: newDesc, satKey: suggested });
+                    }}
                   />
                 </div>
                 <div className="space-y-1">
@@ -93,7 +137,11 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                   <select 
                     className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm"
                     value={newItem.type}
-                    onChange={(e) => setNewItem({...newItem, type: e.target.value})}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      const suggested = getSuggestedSatKey(newItem.desc, newType, ticket.serviceType);
+                      setNewItem({ ...newItem, type: newType, satKey: suggested });
+                    }}
                   >
                     <option value="Refacción">Refacción</option>
                     <option value="Mano de Obra">Mano de Obra</option>
