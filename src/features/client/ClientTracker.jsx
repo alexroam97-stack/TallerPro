@@ -254,13 +254,17 @@ export default function ClientTracker() {
                       <td className="px-6 py-4 text-right">${ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0).toLocaleString()}</td>
                     </tr>
                     <tr>
-                      <td colSpan="3" className="px-6 py-2 text-right text-gray-400 uppercase tracking-widest text-xs">IVA (16%)</td>
-                      <td className="px-6 py-2 text-right">${(ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0) * 0.16).toLocaleString()}</td>
+                      <td colSpan="3" className="px-6 py-2 text-right text-gray-400 uppercase tracking-widest text-xs">
+                        IVA ({ticket.billingInfo?.ivaRate !== undefined ? ticket.billingInfo.ivaRate : 16}%)
+                      </td>
+                      <td className="px-6 py-2 text-right">
+                        ${(ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0) * ((ticket.billingInfo?.ivaRate !== undefined ? ticket.billingInfo.ivaRate : 16) / 100)).toLocaleString()}
+                      </td>
                     </tr>
                     <tr className="text-lg">
                       <td colSpan="3" className="px-6 py-6 text-right text-white uppercase tracking-tighter font-black">Total a Pagar</td>
                       <td className="px-6 py-6 text-right text-accent-primary font-black">
-                        ${(ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0) * 1.16).toLocaleString()}
+                        ${(ticket.items.reduce((acc, i) => acc + (i.qty * i.price), 0) * (1 + ((ticket.billingInfo?.ivaRate !== undefined ? ticket.billingInfo.ivaRate : 16) / 100))).toLocaleString()}
                       </td>
                     </tr>
                   </tfoot>

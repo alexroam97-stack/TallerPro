@@ -44,11 +44,32 @@ const getSuggestedSatKey = (description, type, serviceType) => {
 
 export default function Billing({ ticket, onClose, onUpdate }) {
   const [items, setItems] = useState(ticket.items || []);
-  const [billingInfo, setBillingInfo] = useState(ticket.billingInfo || {
-    rfc: '',
-    zip: '',
-    regime: '601',
-    usage: 'G03'
+  
+  const [settings, setSettings] = useState({
+    name: 'TallerPro',
+    rfc: 'TPRO120409AA1',
+    address: 'Av. de la Reforma 123, Ciudad de México',
+    phone: '526633040096',
+    defaultIva: 16
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('tallerpro_settings');
+    if (saved) {
+      setSettings(prev => ({ ...prev, ...JSON.parse(saved) }));
+    }
+  }, []);
+
+  const [billingInfo, setBillingInfo] = useState(() => {
+    const savedSettings = JSON.parse(localStorage.getItem('tallerpro_settings') || '{}');
+    const defaultIva = savedSettings.defaultIva || 16;
+    return {
+      rfc: ticket.billingInfo?.rfc || '',
+      zip: ticket.billingInfo?.zip || '',
+      regime: ticket.billingInfo?.regime || '601',
+      usage: ticket.billingInfo?.usage || 'G03',
+      ivaRate: ticket.billingInfo?.ivaRate || defaultIva
+    };
   });
 
   const [newItem, setNewItem] = useState({
@@ -59,8 +80,10 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     satKey: '25170000'
   });
 
+  const [showInvoice, setShowInvoice] = useState(false);
+
   const subtotal = items.reduce((acc, item) => acc + (item.qty * item.price), 0);
-  const iva = subtotal * 0.16;
+  const iva = subtotal * ((billingInfo.ivaRate || 16) / 100);
   const total = subtotal + iva;
 
   const handleAddItem = (e) => {
@@ -81,7 +104,8 @@ export default function Billing({ ticket, onClose, onUpdate }) {
 
   const handleBillingChange = (e) => {
     const { name, value } = e.target;
-    const updatedInfo = { ...billingInfo, [name]: value };
+    const parsedValue = name === 'ivaRate' ? (parseInt(value) || 16) : value;
+    const updatedInfo = { ...billingInfo, [name]: parsedValue };
     setBillingInfo(updatedInfo);
     saveChanges(items, updatedInfo);
   };
@@ -278,6 +302,19 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                     <option value="I08">I08 - Otros (Inversión)</option>
                   </select>
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-500 ml-1 uppercase">Tasa de IVA</label>
+                  <select 
+                    name="ivaRate"
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold"
+                    value={billingInfo.ivaRate}
+                    onChange={handleBillingChange}
+                  >
+                    <option value="16">16% (Nacional General)</option>
+                    <option value="8">8% (Región Fronteriza)</option>
+                    <option value="0">0% (Tasa Cero / Exento)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -292,7 +329,7 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                   <span>${subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-gray-400">
-                  <span>IVA (16%)</span>
+                  <span>IVA ({billingInfo.ivaRate || 16}%)</span>
                   <span>${iva.toLocaleString()}</span>
                 </div>
                 <div className="pt-4 border-t border-white/10 flex justify-between text-2xl font-black text-white">
@@ -300,7 +337,16 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                   <span className="text-accent-primary">${total.toLocaleString()}</span>
                 </div>
               </div>
-              <button className="w-full btn-premium py-4 mt-4 flex items-center justify-center gap-3">
+              <button 
+                onClick={() => {
+                  if (!billingInfo.rfc || !billingInfo.zip) {
+                    alert('Por favor, ingresa los datos fiscales (RFC y Código Postal) de facturación.');
+                    return;
+                  }
+                  setShowInvoice(true);
+                }}
+                className="w-full btn-premium py-4 mt-4 flex items-center justify-center gap-3"
+              >
                 <FileText size={20} />
                 GENERAR COMPROBANTE
               </button>
@@ -308,6 +354,162 @@ export default function Billing({ ticket, onClose, onUpdate }) {
           </div>
         </div>
       </div>
+
+      {/* Modal Factura CFDI */}
+      {showInvoice && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-[#0b0e14] p-8 md:p-10 rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-white/10 shadow-ui animate-fade-in-up text-left text-white relative">
+            <button 
+              onClick={() => setShowInvoice(false)} 
+              className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 transition-colors"
+            >
+              <X size={24} />
+            </button>
+            
+            <header className="border-b border-white/10 pb-6 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-black text-accent-primary uppercase tracking-wider">Comprobante Fiscal Digital (CFDI 4.0)</h3>
+                  <p className="text-xs text-gray-500 font-bold mt-1">EMISIÓN SIMULADA - EFECTOS DEMOSTRATIVOS</p>
+                </div>
+                <div className="text-right">
+                  <span className="px-3 py-1 rounded-lg bg-accent-success/10 border border-accent-success/20 text-accent-success text-xs font-black">
+                    TIMBRADO EXITOSO
+                  </span>
+                </div>
+              </div>
+            </header>
+
+            {/* Grid de Emisor/Receptor */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs mb-6 pb-6 border-b border-white/5">
+              <div className="space-y-1">
+                <p className="text-[10px] text-gray-500 font-black uppercase">Emisor</p>
+                <p className="font-black text-white text-sm">{settings.name.toUpperCase()}</p>
+                <p className="font-bold text-gray-300 font-mono">RFC: {settings.rfc.toUpperCase()}</p>
+                <p className="text-gray-400 font-medium">{settings.address}</p>
+                <p className="text-gray-400 font-medium">Régimen: 601 - General de Ley Personas Morales</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] text-gray-500 font-black uppercase">Receptor</p>
+                <p className="font-black text-white text-sm">{ticket.client.toUpperCase()}</p>
+                <p className="font-bold text-gray-300 font-mono">RFC: {billingInfo.rfc.toUpperCase()}</p>
+                <p className="text-gray-400 font-medium">C.P. Fiscal: {billingInfo.zip}</p>
+                <p className="text-gray-400 font-medium">Régimen: {billingInfo.regime} &bull; Uso: {billingInfo.usage}</p>
+              </div>
+            </div>
+
+            {/* Datos de Timbrado */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 text-[10px] font-medium mb-6">
+              <div>
+                <p className="text-gray-500 font-bold uppercase">Folio Fiscal (UUID)</p>
+                <p className="text-gray-300 font-mono select-all font-bold mt-0.5">834D9A12-CFB0-4A33-87D3-5B20892AC771</p>
+              </div>
+              <div>
+                <p className="text-gray-500 font-bold uppercase">No. Serie Certificado SAT</p>
+                <p className="text-gray-300 font-mono font-bold mt-0.5">00001000000504465028</p>
+              </div>
+              <div>
+                <p className="text-gray-500 font-bold uppercase">Fecha y Hora de Certificación</p>
+                <p className="text-gray-300 font-bold mt-0.5">{new Date().toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Conceptos en la Factura */}
+            <div className="border border-white/10 rounded-2xl overflow-hidden mb-6">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-white/5 text-gray-500 font-bold uppercase text-[9px] tracking-wider border-b border-white/10">
+                  <tr>
+                    <th className="px-4 py-2">Clave SAT</th>
+                    <th className="px-4 py-2">Concepto</th>
+                    <th className="px-4 py-2 text-center">Cant.</th>
+                    <th className="px-4 py-2 text-right">Precio</th>
+                    <th className="px-4 py-2 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 font-medium text-gray-300">
+                  {items.map(item => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-3 font-mono text-[10px]">{item.satKey}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-white">{item.desc}</div>
+                        <div className="text-[9px] text-gray-500">{item.type.toUpperCase()}</div>
+                      </td>
+                      <td className="px-4 py-3 text-center">{item.qty}</td>
+                      <td className="px-4 py-3 text-right">${item.price.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right text-white font-bold">${(item.qty * item.price).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-white/5 font-bold text-gray-300 border-t border-white/10">
+                  <tr>
+                    <td colSpan="4" className="px-4 py-2 text-right text-gray-500 uppercase tracking-wider text-[9px]">Subtotal</td>
+                    <td className="px-4 py-2 text-right text-white">${subtotal.toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan="4" className="px-4 py-1.5 text-right text-gray-500 uppercase tracking-wider text-[9px]">
+                      IVA ({billingInfo.ivaRate}%)
+                    </td>
+                    <td className="px-4 py-1.5 text-right text-white">${iva.toLocaleString()}</td>
+                  </tr>
+                  <tr className="text-sm border-t border-white/5">
+                    <td colSpan="4" className="px-4 py-3 text-right text-white font-black uppercase tracking-wider">Total CFDI</td>
+                    <td className="px-4 py-3 text-right text-accent-primary font-black">${total.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Bloque Fiscal del SAT */}
+            <div className="flex gap-4 items-start p-4 bg-white/5 rounded-2xl border border-white/5 mb-8">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent('https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=834D9A12-CFB0-4A33-87D3-5B20892AC771&re=' + settings.rfc + '&rr=' + billingInfo.rfc + '&tt=' + total)}`} 
+                alt="SAT QR Code"
+                className="w-20 h-20 bg-white p-1 rounded-lg shrink-0 border border-white/10"
+              />
+              <div className="space-y-1.5 overflow-hidden text-[9px] font-medium text-gray-500">
+                <div>
+                  <p className="font-bold text-gray-400 uppercase">Sello Digital del CFDI</p>
+                  <p className="truncate font-mono font-bold">dx/g9GskP/P3g0U+58lZkG/M28v2d5q5t7Y6d8r9S0o1N2e3t4y5u6i7o8p9a0s1d2f3g4h5j6k7l8m9n0b1v2c3x4z5q6w7e8r9t0y1u2i3o4p5a6s7d8f9g0h1j2k3l4</p>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-400 uppercase">Sello del SAT</p>
+                  <p className="truncate font-mono font-bold">u7i8o9p0a1s2d3f4g5h6j7k8l9z0x1c2v3b4n5m6q7w8e9r0t1y2u3i4o5p6a7s8d9f0g1h2j3k4l5z6x7c8v9b0n1m2q3w4e5r6t7y8u9i0o1p2a3s4d5f6g7h8j9k0l</p>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-400 uppercase">Cadena Original del Complemento de Certificación Digital del SAT</p>
+                  <p className="truncate font-mono font-bold">||1.1|834D9A12-CFB0-4A33-87D3-5B20892AC771|{new Date().toISOString()}|MEST800101AA1|dx/g9GskP/P3g0U+58lZkG/M28v2d5q5t7Y6d8r9S0o1N2e3t4y5u6i7o8p9a0s1d2f3g4h5j6k7l8m9n0b1v2c3x4z5q6w7e8r9t0y1u2i3o4p5a6s7d8f9g0h1j2k3l4||</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Acciones */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button 
+                onClick={() => window.print()}
+                className="btn-secondary text-xs py-3 px-6"
+              >
+                Imprimir Factura
+              </button>
+              <button 
+                onClick={() => {
+                  const msg = `Hola ${ticket.client}, tu comprobante fiscal digital del ticket ${ticket.id} ha sido generado exitosamente por un total de $${total.toLocaleString()} MXN.`;
+                  window.open(`https://wa.me/${ticket.phone || settings.phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                }}
+                className="btn-premium !bg-accent-success/20 !border-accent-success !text-accent-success !from-transparent !to-transparent border text-xs py-3 px-6"
+              >
+                Enviar al Cliente (WhatsApp)
+              </button>
+              <button 
+                onClick={() => setShowInvoice(false)}
+                className="btn-premium text-xs py-3 px-6"
+              >
+                Entendido
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

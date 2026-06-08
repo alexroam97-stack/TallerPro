@@ -8,6 +8,7 @@ import Billing from './Billing';
 import InteractiveVehicleSVG from './InteractiveVehicleSVG';
 import Analytics from './Analytics';
 import PartsInventory from './PartsInventory';
+import SettingsPanel from './SettingsPanel';
 
 export default function ShopDashboard() {
   const navigate = useNavigate();
@@ -210,6 +211,8 @@ export default function ShopDashboard() {
           <Analytics />
         ) : activeTab === 'autopartes' ? (
           <PartsInventory />
+        ) : activeTab === 'configuracion' ? (
+          <SettingsPanel />
         ) : (
           <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
             <div className="overflow-x-auto">
@@ -241,7 +244,7 @@ export default function ShopDashboard() {
         {/* Modal Nuevo Ingreso */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-            <div className="liquid-glass p-10 rounded-[2.5rem] w-full max-w-xl shadow-ui border-white/20 animate-fade-in-up">
+            <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-ui border-white/20 animate-fade-in-up">
               <header className="flex justify-between items-center mb-10">
                 <h2 className="text-3xl font-black">Registrar Vehículo</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
