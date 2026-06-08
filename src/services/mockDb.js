@@ -16,6 +16,9 @@ const defaultTickets = [
     phone: '521234567890',
     budgetStatus: 'pending',
     damagedPanels: [],
+    insuranceType: 'particular',
+    insuranceCompany: '',
+    claimNumber: '',
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
     closedAt: null
   },
@@ -35,6 +38,9 @@ const defaultTickets = [
     phone: '521987654321',
     budgetStatus: 'approved',
     damagedPanels: [{ panelId: 'rear-bumper', damageLevel: 'HIGH' }, { panelId: 'trunk', damageLevel: 'MEDIUM' }],
+    insuranceType: 'aseguranza',
+    insuranceCompany: 'Qualitas',
+    claimNumber: 'SIN-982405',
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
     closedAt: new Date(Date.now() - 86400000 * 1).toISOString() // 1 day ago (closed)
   },
@@ -49,7 +55,7 @@ export const getTickets = () => {
   return JSON.parse(data);
 };
 
-export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = '') => {
+export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = '', insuranceType = 'particular', insuranceCompany = '', claimNumber = '') => {
   const tickets = getTickets();
   // Generar ID no secuencial para evitar enumeración
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -67,6 +73,9 @@ export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = ''
     billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
     budgetStatus: 'pending',
     damagedPanels: [],
+    insuranceType,
+    insuranceCompany,
+    claimNumber,
     createdAt: new Date().toISOString(),
     closedAt: null
   };

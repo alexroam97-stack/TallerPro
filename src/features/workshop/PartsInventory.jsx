@@ -37,6 +37,8 @@ export default function PartsInventory() {
   const [qcNotes, setQcNotes] = useState('');
   const [qcPhoto, setQcPhoto] = useState('');
   const [inspectedBy, setInspectedBy] = useState('Técnico Principal');
+  const [qcTicketId, setQcTicketId] = useState('');
+  const [qcVehicleCompatibility, setQcVehicleCompatibility] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   
   const fileInputRef = useRef(null);
@@ -89,6 +91,8 @@ export default function PartsInventory() {
     setQcNotes(part.qcNotes || '');
     setQcPhoto(part.photo || '');
     setInspectedBy(part.inspectedBy || 'Técnico Principal');
+    setQcTicketId(part.ticketId || '');
+    setQcVehicleCompatibility(part.vehicleCompatibility || '');
     setIsQCModalOpen(true);
   };
 
@@ -133,7 +137,9 @@ export default function PartsInventory() {
       photo: qcPhoto,
       qcChecked,
       inspectedBy,
-      inspectedAt: new Date().toISOString()
+      inspectedAt: new Date().toISOString(),
+      ticketId: qcTicketId,
+      vehicleCompatibility: qcVehicleCompatibility
     });
 
     setIsQCModalOpen(false);
@@ -251,7 +257,11 @@ export default function PartsInventory() {
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Orden Vinculada</p>
-                      <p className="font-bold text-accent-primary truncate">{part.ticketId || 'Sin vincular'}</p>
+                      <p className="font-bold text-accent-primary truncate">
+                        {tickets.find(t => t.id === part.ticketId) 
+                          ? `${part.ticketId} - ${tickets.find(t => t.id === part.ticketId).client}` 
+                          : (part.ticketId || 'Sin vincular')}
+                      </p>
                     </div>
                   </div>
 
@@ -538,6 +548,31 @@ export default function PartsInventory() {
                     className="hidden" 
                     onChange={handlePhotoUpload} 
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase">Vincular a Vehículo / Orden</label>
+                  <select 
+                    className="w-full bg-[#0d1117] border border-white/10 rounded-2xl p-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    value={qcTicketId}
+                    onChange={(e) => {
+                      const newTktId = e.target.value;
+                      setQcTicketId(newTktId);
+                      const ticket = tickets.find(t => t.id === newTktId);
+                      if (ticket) {
+                        setQcVehicleCompatibility(ticket.vehicle);
+                      } else {
+                        setQcVehicleCompatibility('');
+                      }
+                    }}
+                  >
+                    <option value="">-- No vincular a ticket (inventario general) --</option>
+                    {tickets.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.id} - {t.client} ({t.vehicle})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-1">

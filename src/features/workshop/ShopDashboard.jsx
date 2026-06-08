@@ -23,6 +23,9 @@ export default function ShopDashboard() {
   const [newServiceType, setNewServiceType] = useState('Mecánica');
   const [newDamagedPanels, setNewDamagedPanels] = useState([]);
   const [selectedBillingTicket, setSelectedBillingTicket] = useState(null);
+  const [newInsuranceType, setNewInsuranceType] = useState('particular'); // particular, aseguranza
+  const [newInsuranceCompany, setNewInsuranceCompany] = useState('');
+  const [newClaimNumber, setNewClaimNumber] = useState('');
 
   useEffect(() => {
     setTickets(getTickets());
@@ -31,7 +34,7 @@ export default function ShopDashboard() {
   const handleAddTicket = (e) => {
     e.preventDefault();
     if (!newClient || !newVehicle) return;
-    const newTicket = addTicket(newClient, newVehicle, newServiceType, newPhone);
+    const newTicket = addTicket(newClient, newVehicle, newServiceType, newPhone, newInsuranceType, newInsuranceCompany, newClaimNumber);
     if (newDamagedPanels.length > 0) {
       newTicket.damagedPanels = newDamagedPanels;
       // update immediately to DB
@@ -49,6 +52,9 @@ export default function ShopDashboard() {
     setNewPhone('');
     setNewServiceType('Mecánica');
     setNewDamagedPanels([]);
+    setNewInsuranceType('particular');
+    setNewInsuranceCompany('');
+    setNewClaimNumber('');
   };
 
   return (
@@ -157,7 +163,19 @@ export default function ShopDashboard() {
                     <tr key={ticket.id} className="group hover:bg-white/5 transition-colors">
                       <td className="px-6 py-6 font-black text-accent-primary">{ticket.id}</td>
                       <td className="px-6 py-6 font-bold">{ticket.client}</td>
-                      <td className="px-6 py-6 text-gray-400 font-medium">{ticket.vehicle}</td>
+                      <td className="px-6 py-6">
+                        <div className="font-bold text-white">{ticket.vehicle}</div>
+                        {ticket.insuranceType === 'aseguranza' ? (
+                          <div className="text-[10px] text-accent-primary font-black mt-1 uppercase flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent-primary animate-pulse" />
+                            Aseguradora: {ticket.insuranceCompany} &bull; Siniestro: #{ticket.claimNumber}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-gray-500 font-bold mt-1 uppercase">
+                            Servicio Particular
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-6 text-xs text-gray-500">{ticket.serviceType || 'Mecánica'}</td>
                       <td className="px-6 py-6">
                         <div className="flex flex-col gap-2 items-start">
@@ -289,7 +307,7 @@ export default function ShopDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-400 ml-1 uppercase">TIPO DE SERVICIO</label>
+                  <label className="text-sm font-bold text-gray-400 ml-1 uppercase">Tipo de Servicio</label>
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       type="button"
@@ -307,6 +325,53 @@ export default function ShopDashboard() {
                     </button>
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-400 ml-1 uppercase">Clasificación del Trabajo</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setNewInsuranceType('particular')}
+                      className={`py-3 rounded-xl font-bold border transition-all ${newInsuranceType === 'particular' ? 'bg-accent-primary/20 border-accent-primary text-accent-primary' : 'bg-white/5 border-white/10 text-gray-400'}`}
+                    >
+                      Particular
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setNewInsuranceType('aseguranza')}
+                      className={`py-3 rounded-xl font-bold border transition-all ${newInsuranceType === 'aseguranza' ? 'bg-accent-primary/20 border-accent-primary text-accent-primary' : 'bg-white/5 border-white/10 text-gray-400'}`}
+                    >
+                      Aseguradora
+                    </button>
+                  </div>
+                </div>
+
+                {newInsuranceType === 'aseguranza' && (
+                  <div className="grid grid-cols-2 gap-4 animate-fade-in-up">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-400 ml-1">COMPAÑÍA ASEGURADORA</label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm"
+                        placeholder="Ej. GNP, Qualitas" 
+                        value={newInsuranceCompany}
+                        onChange={(e) => setNewInsuranceCompany(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-400 ml-1">NÚMERO DE SINIESTRO</label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm"
+                        placeholder="Ej. SIN-83924" 
+                        value={newClaimNumber}
+                        onChange={(e) => setNewClaimNumber(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {newServiceType === 'Hojalatería y Pintura' && (
                   <div className="space-y-2 pt-4 border-t border-white/10 animate-fade-in-up">

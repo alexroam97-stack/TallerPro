@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package } from 'lucide-react';
+import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package, Shield } from 'lucide-react';
 import { getTicket, updateBudgetStatus, getParts } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
@@ -91,7 +91,21 @@ export default function ClientTracker() {
               <Car size={40} className="text-accent-primary" />
            </div>
            <h1 className="text-4xl font-black tracking-tighter mb-2">{ticket?.vehicle || 'Buscando vehículo...'}</h1>
-           <p className="text-accent-primary font-black tracking-widest text-lg">ID TICKET: {ticketId}</p>
+           <p className="text-accent-primary font-black tracking-widest text-lg mb-3">ID TICKET: {ticketId}</p>
+           {ticket?.insuranceType === 'aseguranza' ? (
+             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-accent-primary/10 border border-accent-primary/20 text-accent-primary animate-fade-in mx-auto">
+               <Shield size={16} className="shrink-0" />
+               <span className="text-xs font-bold uppercase tracking-wider text-gray-200">
+                 Aseguradora: <span className="text-accent-primary">{ticket.insuranceCompany}</span> &bull; Siniestro: <span className="font-mono text-accent-primary">#{ticket.claimNumber}</span>
+               </span>
+             </div>
+           ) : ticket?.insuranceType === 'particular' ? (
+             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-gray-400 animate-fade-in mx-auto">
+               <span className="text-xs font-bold uppercase tracking-wider">
+                 Servicio Particular
+               </span>
+             </div>
+           ) : null}
         </div>
 
         <div className="space-y-12 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-white/10">
