@@ -6,15 +6,32 @@ import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import InteractiveVehicleSVG from '../workshop/InteractiveVehicleSVG';
 import SignatureCanvas from '../../components/SignatureCanvas';
+import { useAuth } from '../../skills/security';
 
 export default function ClientTracker() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [ticket, setTicket] = useState(null);
   const [parts, setParts] = useState([]);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [deliverySignature, setDeliverySignature] = useState('');
   const [signatureSaved, setSignatureSaved] = useState(false);
+  const [shopPhone, setShopPhone] = useState('526633040096');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('tallerpro_settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.phone) {
+          setShopPhone(parsed.phone);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (ticketId) {
@@ -29,10 +46,10 @@ export default function ClientTracker() {
     setTicket({ ...ticket, budgetStatus: status });
     
     // Simular notificación al taller vía WhatsApp
-    const shopPhone = "526633040096"; // Número del taller
+    const cleanShopPhone = shopPhone.replace(/\D/g, '');
     const actionText = status === 'approved' ? 'ACEPTADO' : 'DECLINADO';
     const message = `Hola, soy el cliente del ticket ${ticketId} (${ticket.vehicle}). He ${actionText} el presupuesto.`;
-    window.open(`https://wa.me/${shopPhone}?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/${cleanShopPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const mechanicalEvents = [
@@ -82,7 +99,7 @@ export default function ClientTracker() {
       <header className="container mx-auto px-6 py-8 flex justify-between items-center relative z-10 animate-fade-in">
         <Logo size="sm" />
         <button 
-          onClick={() => navigate('/')}
+          onClick={() => navigate(user ? '/dashboard' : '/')}
           className="flex items-center gap-2 text-gray-400 font-bold hover:text-white transition-colors"
         >
           <ChevronLeft size={20} /> VOLVER

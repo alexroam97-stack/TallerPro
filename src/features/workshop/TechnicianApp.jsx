@@ -158,12 +158,20 @@ export default function TechnicianApp() {
       <main className="flex-1 p-4 md:p-6 flex flex-col relative z-10 max-w-lg mx-auto w-full">
         {step === 1 && (
           <div className="animate-fade-in flex flex-col h-full">
-            <button 
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-accent-primary font-bold mb-8 hover:opacity-80 transition-opacity"
-            >
-              <Home size={24} /> INICIO
-            </button>
+            <div className="flex justify-between items-center mb-8">
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center gap-2 text-accent-primary font-bold hover:opacity-80 transition-opacity"
+              >
+                <ChevronLeft size={24} /> PANEL
+              </button>
+              <button 
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 text-gray-400 font-bold hover:opacity-80 transition-opacity"
+              >
+                <Home size={20} /> INICIO
+              </button>
+            </div>
             
             <h2 className="text-4xl font-black mb-8 tracking-tighter">ORDEN DE TRABAJO</h2>
             

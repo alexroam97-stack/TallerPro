@@ -56,6 +56,12 @@ export const SecurityProvider = ({ children }) => {
     }
   };
 
+  const loginWithCredentials = (userData) => {
+    setUser(userData);
+    localStorage.setItem('tp_session', JSON.stringify(userData));
+    return true;
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('tp_session');
@@ -65,7 +71,7 @@ export const SecurityProvider = ({ children }) => {
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      <AuthContext.Provider value={{ user, loginWithGoogle, logout, loading }}>
+      <AuthContext.Provider value={{ user, loginWithGoogle, loginWithCredentials, logout, loading }}>
         {children}
       </AuthContext.Provider>
     </GoogleOAuthProvider>

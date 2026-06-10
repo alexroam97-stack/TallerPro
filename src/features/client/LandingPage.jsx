@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Zap, ArrowRight, Lock, CheckCircle2, Camera, MessageSquare, Smartphone, X } from 'lucide-react';
+import { ShieldCheck, Zap, ArrowRight, Lock, CheckCircle2, Camera, MessageSquare, Smartphone, X, Upload } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../skills/security';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
+import { compressImage } from '../../skills/imageUtils';
 
 const pricingPlans = [
   { 
@@ -47,13 +48,122 @@ const pricingPlans = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { loginWithGoogle, user } = useAuth();
+  const { loginWithGoogle, loginWithCredentials, user } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [ticketSearch, setTicketSearch] = useState('');
+  
+  // Tab selector for auth modal
+  const [authTab, setAuthTab] = useState('login'); // login, register
+  
+  // Login fields
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  
+  // Register fields
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regWorkshopName, setRegWorkshopName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regLogo, setRegLogo] = useState('');
+  const [isLogoUploading, setIsLogoUploading] = useState(false);
 
   const handleGoogleSuccess = (credentialResponse) => {
     if (loginWithGoogle(credentialResponse)) {
       navigate('/dashboard');
+    }
+  };
+
+  const handleCredentialLogin = (e) => {
+    e.preventDefault();
+    const email = loginEmail.trim() || 'admin@tallerpro.com';
+    const password = loginPassword || 'tallerpro2026';
+    
+    const savedUser = localStorage.getItem('tp_registered_user');
+    let userToLogin = null;
+    
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      if (parsed.email === email && parsed.password === password) {
+        userToLogin = {
+          id: parsed.id,
+          name: parsed.name,
+          email: parsed.email,
+          picture: parsed.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.name)}&background=00f2ff&color=000`,
+          role: 'admin'
+        };
+      }
+    }
+    
+    if (!userToLogin && email === 'admin@tallerpro.com' && password === 'tallerpro2026') {
+      userToLogin = {
+        id: 'demo_admin',
+        name: 'Admin Demo',
+        email: 'admin@tallerpro.com',
+        picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000',
+        role: 'admin'
+      };
+    }
+    
+    if (userToLogin) {
+      loginWithCredentials(userToLogin);
+      navigate('/dashboard');
+    } else {
+      alert('Correo o contraseña incorrectos. Si no tienes una cuenta, regístrate en la pestaña "Registrar Taller".');
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (!regName || !regEmail || !regPassword || !regWorkshopName || !regPhone) {
+      alert('Por favor completa todos los campos obligatorios.');
+      return;
+    }
+    
+    const newUser = {
+      id: 'usr_' + Math.random().toString(36).substring(2, 9),
+      name: regName,
+      email: regEmail,
+      password: regPassword,
+      picture: regLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(regName)}&background=00f2ff&color=000`
+    };
+    
+    localStorage.setItem('tp_registered_user', JSON.stringify(newUser));
+    
+    const customSettings = {
+      name: regWorkshopName,
+      logo: regLogo || '',
+      phone: regPhone,
+      address: 'Av. de la Reforma 123, Ciudad de México',
+      rfc: 'TPRO120409AA1',
+      defaultIva: 16
+    };
+    localStorage.setItem('tallerpro_settings', JSON.stringify(customSettings));
+    
+    loginWithCredentials({
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      picture: newUser.picture,
+      role: 'admin'
+    });
+    
+    alert('¡Registro exitoso! Cuenta y taller creados.');
+    navigate('/dashboard');
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsLogoUploading(true);
+    try {
+      const compressed = await compressImage(file, 200, 0.8);
+      setRegLogo(compressed);
+    } catch (err) {
+      console.error(err);
+      alert('Error al comprimir la imagen');
+    } finally {
+      setIsLogoUploading(false);
     }
   };
 
@@ -253,7 +363,13 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <button className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular ? 'bg-accent-primary text-black hover:bg-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                <button 
+                  onClick={() => {
+                    const msg = `Hola, estoy interesado en adquirir el plan "${plan.name}" de TallerPro.`;
+                    window.open(`https://wa.me/526633040096?text=${encodeURIComponent(msg)}`, '_blank');
+                  }}
+                  className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular ? 'bg-accent-primary text-black hover:bg-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                >
                   Elegir Plan
                 </button>
               </div>
@@ -263,40 +379,190 @@ export default function LandingPage() {
       </section>
 
       {/* Login Modal */}
+      {/* Login Modal */}
       {showLogin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="liquid-glass p-12 rounded-[2.5rem] w-full max-w-md text-center shadow-ui border-white/20 animate-fade-in-up">
-            <div className="p-5 rounded-full bg-accent-primary/20 w-fit mx-auto mb-8">
-              <Lock className="text-accent-primary" size={40} />
-            </div>
-            <h3 className="text-3xl font-black mb-4">Ingreso Staff</h3>
-            <p className="text-gray-400 mb-10 text-lg">Accede a tu cuenta corporativa para gestionar el taller.</p>
-            
-            <div className="flex flex-col items-center gap-4 mb-8">
-              {(!import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your-client-id')) ? (
-                <button 
-                  className="btn-premium w-full py-4"
-                  onClick={() => handleGoogleSuccess({ credential: 'fake_jwt_for_demo' })}
-                >
-                  Demo Login (Admin)
-                </button>
-              ) : (
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={() => console.log('Login Failed')}
-                  theme="filled_black"
-                  shape="pill"
-                  size="large"
-                />
-              )}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+          <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-md text-center shadow-ui border-white/20 animate-fade-in-up my-8">
+            <header className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-white">Acceso Personal</h3>
+              <button 
+                onClick={() => {
+                  setShowLogin(false);
+                  setAuthTab('login');
+                }} 
+                className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </header>
+
+            {/* Tab Selector */}
+            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 mb-6">
+              <button
+                type="button"
+                onClick={() => setAuthTab('login')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authTab === 'login' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+              >
+                Iniciar Sesión
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthTab('register')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authTab === 'register' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+              >
+                Registrar Taller
+              </button>
             </div>
 
-            <button 
-              className="text-gray-500 hover:text-white transition-colors font-medium"
-              onClick={() => setShowLogin(false)}
-            >
-              Cerrar Ventana
-            </button>
+            {authTab === 'login' ? (
+              <form onSubmit={handleCredentialLogin} className="space-y-4">
+                <div className="space-y-1 text-left">
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    placeholder="admin@tallerpro.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1 text-left">
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Contraseña</label>
+                  <input
+                    type="password"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                  />
+                </div>
+
+                <div className="text-[10px] text-gray-500 font-medium bg-white/5 p-2.5 rounded-lg border border-white/5 text-left leading-relaxed">
+                  <span className="font-bold text-accent-primary block mb-0.5">💡 Demo de prueba rápida:</span>
+                  Usa <span className="font-mono text-gray-300 font-bold">admin@tallerpro.com</span> y <span className="font-mono text-gray-300 font-bold">tallerpro2026</span> o regístrate en la pestaña superior.
+                </div>
+
+                <button type="submit" className="btn-premium w-full py-3 text-xs font-black uppercase tracking-wider mt-4">
+                  Ingresar al Taller
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                {/* Logo Upload */}
+                <div className="flex flex-col items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5">
+                  <div 
+                    onClick={() => !isLogoUploading && document.getElementById('reg-logo-input').click()}
+                    className="relative w-16 h-16 rounded-xl border border-dashed border-white/20 bg-black/30 hover:bg-black/50 flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden shrink-0"
+                  >
+                    {regLogo ? (
+                      <img src={regLogo} alt="Logo" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <div className="text-center p-1">
+                        <Upload size={16} className="text-gray-500 mx-auto" />
+                        <span className="text-[8px] font-black text-gray-500 uppercase block mt-1">Logo</span>
+                      </div>
+                    )}
+                  </div>
+                  <input 
+                    id="reg-logo-input"
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleLogoUpload} 
+                  />
+                  <p className="text-[9px] text-gray-500">Logo del taller (opcional)</p>
+                  {isLogoUploading && <span className="text-[9px] text-accent-primary animate-pulse font-bold">Cargando...</span>}
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    placeholder="Ej. Juan Pérez"
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Nombre de tu Taller</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    placeholder="Ej. Mecánica Automotriz Express"
+                    value={regWorkshopName}
+                    onChange={(e) => setRegWorkshopName(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-1">WhatsApp del Taller (Notificaciones)</label>
+                  <input
+                    type="tel"
+                    required
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    placeholder="Ej. 526633040096"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Correo de Acceso</label>
+                  <input
+                    type="email"
+                    required
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    placeholder="ejemplo@correo.com"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Contraseña</label>
+                  <input
+                    type="password"
+                    required
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                    placeholder="Crea una contraseña"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                  />
+                </div>
+
+                <button type="submit" className="btn-premium w-full py-3 text-xs font-black uppercase tracking-wider mt-4">
+                  Registrar e Ingresar
+                </button>
+              </form>
+            )}
+
+            {/* Google OAuth Option */}
+            {authTab === 'login' && (
+              <div className="mt-6 pt-6 border-t border-white/5 flex flex-col items-center gap-4">
+                <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">o ingresa con Google</span>
+                {(!import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your-client-id')) ? (
+                  <button 
+                    type="button"
+                    className="w-full py-3 text-xs font-black border border-white/10 rounded-xl bg-white/5 text-gray-400 hover:text-white transition-all"
+                    onClick={() => handleGoogleSuccess({ credential: 'fake_jwt_for_demo' })}
+                  >
+                    Google Demo Auth
+                  </button>
+                ) : (
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => console.log('Login Failed')}
+                    theme="filled_black"
+                    shape="pill"
+                    size="large"
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
