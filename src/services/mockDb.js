@@ -61,11 +61,7 @@ export const getTickets = () => {
   const parsed = JSON.parse(data);
   let migrated = false;
   parsed.forEach(ticket => {
-    if (ticket.id === 'TKT-X821' && ticket.phone !== '526633040096') {
-      ticket.phone = '526633040096';
-      migrated = true;
-    }
-    if (ticket.id === 'TKT-Z493' && ticket.phone !== '526633040096') {
+    if (ticket.phone !== '526633040096') {
       ticket.phone = '526633040096';
       migrated = true;
     }
