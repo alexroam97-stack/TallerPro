@@ -104,6 +104,19 @@ export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = ''
   return newTicket;
 };
 
+export const deleteTicket = (ticketId) => {
+  const tickets = getTickets();
+  const filtered = tickets.filter(t => t.id !== ticketId);
+  localStorage.setItem(DB_KEY, JSON.stringify(filtered));
+  
+  // Clean up linked parts as well
+  const parts = getParts();
+  const filteredParts = parts.filter(p => p.ticketId !== ticketId);
+  saveParts(filteredParts);
+  
+  return true;
+};
+
 export const addEventToTicket = (ticketId, eventId, photoBase64 = null) => {
   const tickets = getTickets();
   const ticketIndex = tickets.findIndex(t => t.id === ticketId);

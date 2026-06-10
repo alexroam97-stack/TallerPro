@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft } from 'lucide-react';
-import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket } from '../../services/mockDb';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2 } from 'lucide-react';
+import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
@@ -227,6 +227,16 @@ export default function ShopDashboard() {
         if (link) {
           window.open(link, '_blank');
         }
+      }
+    }
+  };
+
+  const handleDeleteTicket = (ticketId) => {
+    if (window.confirm(`¿Seguro que deseas eliminar la orden de trabajo ${ticketId}? Esta acción no se puede deshacer y borrará también las piezas del inventario vinculadas.`)) {
+      deleteTicket(ticketId);
+      setTickets(getTickets());
+      if (selectedDetailsTicket && selectedDetailsTicket.id === ticketId) {
+        setSelectedDetailsTicket(null);
       }
     }
   };
@@ -562,6 +572,14 @@ export default function ShopDashboard() {
                           >
                             <MessageSquare size={16} />
                             WHATSAPP
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteTicket(ticket.id)}
+                            className="flex items-center gap-2 text-sm font-bold text-red-400 hover:text-red-300 transition-colors"
+                            title="Eliminar orden de trabajo"
+                          >
+                            <Trash2 size={16} />
+                            ELIMINAR
                           </button>
                         </div>
                       </td>
@@ -1019,6 +1037,12 @@ export default function ShopDashboard() {
                     className="btn-premium !py-1.5 !px-3 text-xs flex items-center gap-1 font-black"
                   >
                     <Edit size={14} /> EDITAR
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteTicket(selectedDetailsTicket.id)}
+                    className="btn-secondary !border-red-500/30 !text-red-400 hover:!bg-red-500/10 !py-1.5 !px-3 text-xs flex items-center gap-1 font-black"
+                  >
+                    <Trash2 size={14} /> ELIMINAR
                   </button>
                   <button 
                     onClick={() => setSelectedDetailsTicket(null)} 
