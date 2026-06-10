@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft } from 'lucide-react';
-import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus } from '../../services/mockDb';
+import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
+import { generateWhatsAppLink } from '../../services/notifications';
 import Billing from './Billing';
 import InteractiveVehicleSVG from './InteractiveVehicleSVG';
 import Analytics from './Analytics';
@@ -193,6 +194,41 @@ export default function ShopDashboard() {
     updateBudgetStatus(ticketId, status);
     setTickets(getTickets());
     setSelectedDetailsTicket(prev => prev ? { ...prev, budgetStatus: status } : null);
+  };
+
+  const handleAdvanceStage = (ticket) => {
+    const currentEvents = ticket.events || [1];
+    const nextEventId = currentEvents.length + 1;
+    if (nextEventId <= 5) {
+      addEventToTicket(ticket.id, nextEventId);
+      
+      const updatedTickets = getTickets();
+      setTickets(updatedTickets);
+      
+      const updatedTicket = updatedTickets.find(t => t.id === ticket.id);
+      if (selectedDetailsTicket && selectedDetailsTicket.id === ticket.id) {
+        setSelectedDetailsTicket(updatedTicket);
+      }
+      
+      // Auto-notify client via WhatsApp
+      if (updatedTicket && updatedTicket.phone) {
+        const stages = updatedTicket.serviceType === 'Hojalatería y Pintura'
+          ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
+          : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+        const nextStepName = stages[nextEventId - 1] || updatedTicket.status;
+        
+        const link = generateWhatsAppLink(
+          updatedTicket.phone,
+          updatedTicket.client,
+          updatedTicket.vehicle,
+          nextStepName,
+          updatedTicket.id
+        );
+        if (link) {
+          window.open(link, '_blank');
+        }
+      }
+    }
   };
 
   const handleAddTicket = (e) => {
@@ -448,6 +484,19 @@ export default function ShopDashboard() {
                           <span className="px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
                             {ticket.status.toUpperCase()}
                           </span>
+                          {(!ticket.events || ticket.events.length < 5) ? (
+                            <button
+                              onClick={() => handleAdvanceStage(ticket)}
+                              className="text-[10px] font-black text-accent-primary hover:text-white transition-colors bg-accent-primary/10 hover:bg-accent-primary/30 border border-accent-primary/30 px-2 py-0.5 rounded flex items-center gap-1 mt-1 uppercase"
+                              title="Avanzar de etapa"
+                            >
+                              Avanzar &rarr;
+                            </button>
+                          ) : (
+                            <span className="text-[9px] font-bold text-accent-success flex items-center gap-1 mt-1 uppercase tracking-wider">
+                              <Check size={10}/> Listo / Entregado
+                            </span>
+                          )}
                           {ticket.budgetStatus === 'approved' && (
                             <span className="text-[10px] font-bold text-accent-success flex items-center gap-1">
                               <Check size={12}/> PRESUPUESTO OK
@@ -995,9 +1044,24 @@ export default function ShopDashboard() {
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 font-bold uppercase">Estado Actual</p>
-                      <span className="inline-block mt-1 px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
-                        {selectedDetailsTicket.status.toUpperCase()}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="inline-block px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
+                          {selectedDetailsTicket.status.toUpperCase()}
+                        </span>
+                        {(!selectedDetailsTicket.events || selectedDetailsTicket.events.length < 5) ? (
+                          <button
+                            onClick={() => handleAdvanceStage(selectedDetailsTicket)}
+                            className="px-2 py-1 rounded bg-accent-primary text-black font-black text-[10px] hover:bg-white transition-all uppercase"
+                            title="Avanzar vehículo a la siguiente etapa"
+                          >
+                            Avanzar &rarr;
+                          </button>
+                        ) : (
+                          <span className="text-[9px] font-bold text-accent-success flex items-center gap-1 uppercase tracking-wider">
+                            <Check size={10} /> Listo
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 font-bold uppercase">Clasificación</p>

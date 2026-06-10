@@ -108,31 +108,33 @@ export const addEventToTicket = (ticketId, eventId, photoBase64 = null) => {
   const tickets = getTickets();
   const ticketIndex = tickets.findIndex(t => t.id === ticketId);
   if (ticketIndex > -1) {
-    if (!tickets[ticketIndex].events) {
-      tickets[ticketIndex].events = [];
+    const t = tickets[ticketIndex];
+    if (!t.events) {
+      t.events = [];
     }
-    if (!tickets[ticketIndex].events.includes(eventId)) {
-      tickets[ticketIndex].events.push(eventId);
+    
+    // Ensure all preceding events up to eventId are completed
+    for (let i = 1; i <= eventId; i++) {
+      if (!t.events.includes(i)) {
+        t.events.push(i);
+      }
     }
     
     if (photoBase64) {
-      if (!tickets[ticketIndex].photos) tickets[ticketIndex].photos = {};
-      tickets[ticketIndex].photos[eventId] = photoBase64;
+      if (!t.photos) t.photos = {};
+      t.photos[eventId] = photoBase64;
     }
     
-    // Update status based on event
-    const statusMap = {
-      1: 'Recepción',
-      2: 'Evaluación',
-      3: 'Mecánica',
-      4: 'Pintura',
-      5: 'Entrega'
-    };
-    tickets[ticketIndex].status = statusMap[eventId] || tickets[ticketIndex].status;
+    // Map event ID to status name dynamically
+    const stages = t.serviceType === 'Hojalatería y Pintura'
+      ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
+      : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+      
+    t.status = stages[eventId - 1] || t.status;
     
-    // Auto-close ticket when reaching 'Entrega' (step 5)
-    if (eventId === 5 && !tickets[ticketIndex].closedAt) {
-      tickets[ticketIndex].closedAt = new Date().toISOString();
+    // Auto-close ticket when reaching 'Listo' (step 5)
+    if (eventId === 5 && !t.closedAt) {
+      t.closedAt = new Date().toISOString();
     }
 
     localStorage.setItem(DB_KEY, JSON.stringify(tickets));

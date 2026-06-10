@@ -118,10 +118,26 @@ export default function TechnicianApp() {
       const currentEvents = getTicketEvents(selectedTicket.id);
       const nextEventId = currentEvents.length + 1;
       const firstAvailablePhoto = Object.values(photos)[0] || null;
+      const nextStepName = getNextStepName();
+      
       addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5), firstAvailablePhoto);
       
       // Save elapsed seconds to timeLogs
-      updateTimeLogs(selectedTicket.id, getNextStepName(), elapsedSeconds);
+      updateTimeLogs(selectedTicket.id, nextStepName, elapsedSeconds);
+      
+      // Auto-notify client via WhatsApp
+      if (selectedTicket.phone) {
+        const link = generateWhatsAppLink(
+          selectedTicket.phone,
+          selectedTicket.client,
+          selectedTicket.vehicle,
+          nextStepName,
+          selectedTicket.id
+        );
+        if (link) {
+          window.open(link, '_blank');
+        }
+      }
     }
     
     setStep(3);
