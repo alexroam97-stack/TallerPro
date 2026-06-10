@@ -13,7 +13,7 @@ const defaultTickets = [
     photos: {},
     items: [],
     billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
-    phone: '521234567890',
+    phone: '526633040096',
     budgetStatus: 'pending',
     damagedPanels: [],
     insuranceType: 'particular',
@@ -38,7 +38,7 @@ const defaultTickets = [
       { id: 2, desc: 'Pintura Bicapa (Color Match)', qty: 1, price: 3200, type: 'Refacción', satKey: '31211500' }
     ],
     billingInfo: { rfc: 'XAXX010101000', zip: '06600', regime: '612', usage: 'G03' },
-    phone: '521987654321',
+    phone: '526633040096',
     budgetStatus: 'approved',
     damagedPanels: [{ panelId: 'rear-bumper', damageLevel: 'HIGH' }, { panelId: 'trunk', damageLevel: 'MEDIUM' }],
     insuranceType: 'aseguranza',
@@ -58,7 +58,22 @@ export const getTickets = () => {
     localStorage.setItem(DB_KEY, JSON.stringify(defaultTickets));
     return defaultTickets;
   }
-  return JSON.parse(data);
+  const parsed = JSON.parse(data);
+  let migrated = false;
+  parsed.forEach(ticket => {
+    if (ticket.id === 'TKT-X821' && ticket.phone !== '526633040096') {
+      ticket.phone = '526633040096';
+      migrated = true;
+    }
+    if (ticket.id === 'TKT-Z493' && ticket.phone !== '526633040096') {
+      ticket.phone = '526633040096';
+      migrated = true;
+    }
+  });
+  if (migrated) {
+    localStorage.setItem(DB_KEY, JSON.stringify(parsed));
+  }
+  return parsed;
 };
 
 export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = '', insuranceType = 'particular', insuranceCompany = '', claimNumber = '') => {
