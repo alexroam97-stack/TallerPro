@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package, Shield } from 'lucide-react';
-import { getTicket, updateBudgetStatus, getParts, saveSignature } from '../../services/mockDb';
+import { getTicket, updateBudgetStatus, getParts, saveSignature, addEventToTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import InteractiveVehicleSVG from '../workshop/InteractiveVehicleSVG';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
+import { generateWhatsAppLink } from '../../services/notifications';
 
 export default function ClientTracker() {
   const { ticketId } = useParams();
@@ -50,6 +51,37 @@ export default function ClientTracker() {
     const actionText = status === 'approved' ? 'ACEPTADO' : 'DECLINADO';
     const message = `Hola, soy el cliente del ticket ${ticketId} (${ticket.vehicle}). He ${actionText} el presupuesto.`;
     window.open(`https://wa.me/${cleanShopPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleAdvanceStage = () => {
+    if (!ticket) return;
+    const currentEvents = ticket.events || [1];
+    const nextEventId = currentEvents.length + 1;
+    if (nextEventId <= 5) {
+      addEventToTicket(ticket.id, nextEventId);
+      
+      const updatedTicket = getTicket(ticket.id);
+      setTicket(updatedTicket);
+      
+      // Auto-notify client via WhatsApp
+      if (updatedTicket.phone) {
+        const stages = updatedTicket.serviceType === 'Hojalatería y Pintura'
+          ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
+          : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+        const nextStepName = stages[nextEventId - 1] || updatedTicket.status;
+        
+        const link = generateWhatsAppLink(
+          updatedTicket.phone,
+          updatedTicket.client,
+          updatedTicket.vehicle,
+          nextStepName,
+          updatedTicket.id
+        );
+        if (link) {
+          window.open(link, '_blank');
+        }
+      }
+    }
   };
 
   const mechanicalEvents = [
@@ -127,6 +159,16 @@ export default function ClientTracker() {
                </span>
              </div>
            ) : null}
+            {ticket && (!ticket.events || ticket.events.length < 5) && (
+              <div className="mt-6 border-t border-white/5 pt-4">
+                <button
+                  onClick={handleAdvanceStage}
+                  className="px-6 py-2.5 bg-accent-primary text-black font-black text-xs rounded-xl hover:bg-white transition-all uppercase tracking-wider shadow-lg shadow-accent-primary/20"
+                >
+                  Avanzar Etapa (Demo)
+                </button>
+              </div>
+            )}
         </div>
 
         <div className="space-y-12 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-white/10">
