@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package } from 'lucide-react';
-import { getTickets, addTicket } from '../../services/mockDb';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare } from 'lucide-react';
+import { getTickets, addTicket, saveSignature } from '../../services/mockDb';
 import Logo from '../../components/Logo';
+import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
 import Billing from './Billing';
 import InteractiveVehicleSVG from './InteractiveVehicleSVG';
@@ -26,6 +27,33 @@ export default function ShopDashboard() {
   const [newInsuranceType, setNewInsuranceType] = useState('particular'); // particular, aseguranza
   const [newInsuranceCompany, setNewInsuranceCompany] = useState('');
   const [newClaimNumber, setNewClaimNumber] = useState('');
+  const [newSignatureIntake, setNewSignatureIntake] = useState('');
+  const [selectedWhatsAppTicket, setSelectedWhatsAppTicket] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('ingreso');
+  const [customMessage, setCustomMessage] = useState('');
+
+  const getWhatsAppTemplateText = (ticket, templateType) => {
+    if (!ticket) return '';
+    const trackerUrl = `${window.location.origin}/tracker/${ticket.id}`;
+    switch(templateType) {
+      case 'ingreso':
+        return `Hola *${ticket.client}*, te informamos que tu vehículo *${ticket.vehicle}* ha ingresado a taller con el ID de ticket *${ticket.id}*. Puedes consultar el estatus en vivo aquí: ${trackerUrl}`;
+      case 'presupuesto':
+        return `Hola *${ticket.client}*, el presupuesto para la reparación de tu vehículo *${ticket.vehicle}* está listo para tu revisión y autorización. Por favor revísalo aquí: ${trackerUrl}`;
+      case 'reparacion':
+        return `Hola *${ticket.client}*, te informamos que hemos comenzado con los trabajos de reparación de tu vehículo *${ticket.vehicle}*. Sigue el avance paso a paso: ${trackerUrl}`;
+      case 'listo':
+        return `¡Buenas noticias *${ticket.client}*! Tu vehículo *${ticket.vehicle}* ha completado todas las pruebas de calidad y está listo para entrega. Puedes pasar a recogerlo. Ubicación del taller: https://maps.google.com/?q=TallerPro`;
+      default:
+        return '';
+    }
+  };
+
+  const handleSendWhatsApp = () => {
+    const cleanPhone = selectedWhatsAppTicket.phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(customMessage)}`, '_blank');
+    setSelectedWhatsAppTicket(null);
+  };
 
   useEffect(() => {
     setTickets(getTickets());
@@ -45,6 +73,10 @@ export default function ShopDashboard() {
         localStorage.setItem('tallerpro_tickets', JSON.stringify(allTix));
       }
     }
+    if (newSignatureIntake) {
+      saveSignature(newTicket.id, 'intake', newSignatureIntake);
+      newTicket.signatureIntake = newSignatureIntake;
+    }
     setTickets([...tickets.filter(t => t.id !== newTicket.id), newTicket]);
     setIsModalOpen(false);
     setNewClient('');
@@ -55,6 +87,7 @@ export default function ShopDashboard() {
     setNewInsuranceType('particular');
     setNewInsuranceCompany('');
     setNewClaimNumber('');
+    setNewSignatureIntake('');
   };
 
   return (
@@ -199,6 +232,7 @@ export default function ShopDashboard() {
                           <button 
                             onClick={() => navigate(`/tracker/${ticket.id}`)}
                             className="flex items-center gap-2 text-sm font-bold text-accent-primary hover:text-white transition-colors"
+                            title="Ver en vivo"
                           >
                             <LinkIcon size={16} />
                             TRACKER
@@ -206,6 +240,7 @@ export default function ShopDashboard() {
                           <button 
                             onClick={() => setSelectedQR(ticket.id)}
                             className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
+                            title="Generar código QR"
                           >
                             <QrCode size={16} />
                             QR
@@ -213,9 +248,22 @@ export default function ShopDashboard() {
                           <button 
                             onClick={() => setSelectedBillingTicket(ticket)}
                             className="flex items-center gap-2 text-sm font-bold text-accent-success hover:text-white transition-colors"
+                            title="Facturación e IVA"
                           >
                             <Receipt size={16} />
                             BILLING
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSelectedWhatsAppTicket(ticket);
+                              setCustomMessage(getWhatsAppTemplateText(ticket, 'ingreso'));
+                              setSelectedTemplate('ingreso');
+                            }}
+                            className="flex items-center gap-2 text-sm font-bold text-[#25D366] hover:text-white transition-colors"
+                            title="Notificar por WhatsApp"
+                          >
+                            <MessageSquare size={16} />
+                            WHATSAPP
                           </button>
                         </div>
                       </td>
@@ -384,6 +432,14 @@ export default function ShopDashboard() {
                     </div>
                   </div>
                 )}
+
+                <div className="space-y-2 pt-4 border-t border-white/10 animate-fade-in-up">
+                  <label className="text-sm font-bold text-gray-400 ml-1 uppercase">Firma del Cliente (Conformidad)</label>
+                  <SignatureCanvas 
+                    onChange={setNewSignatureIntake} 
+                    placeholder="Dibuja la firma del cliente" 
+                  />
+                </div>
                 
                 <button type="submit" className="btn-premium w-full py-4 text-lg mt-4">
                   Generar Orden de Trabajo
@@ -413,6 +469,72 @@ export default function ShopDashboard() {
               <p className="text-gray-400 font-bold mb-1">TICKET</p>
               <p className="text-3xl font-black text-accent-primary tracking-tighter mb-4">{selectedQR}</p>
               <p className="text-sm text-gray-500 font-medium">El técnico puede escanear este código para acceder a la orden de trabajo.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Modal WhatsApp Templates */}
+        {selectedWhatsAppTicket && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-lg shadow-ui border-white/20 animate-fade-in-up">
+              <header className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black flex items-center gap-2">
+                  <MessageSquare className="text-accent-primary" />
+                  Notificaciones WhatsApp
+                </h2>
+                <button onClick={() => setSelectedWhatsAppTicket(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                  <X size={24} />
+                </button>
+              </header>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase">Selecciona una Plantilla</label>
+                  <div className="grid grid-cols-2 gap-2 mt-1.5">
+                    {[
+                      { id: 'ingreso', label: 'Ingreso Vehículo' },
+                      { id: 'presupuesto', label: 'Presupuesto Listo' },
+                      { id: 'reparacion', label: 'Reparación Iniciada' },
+                      { id: 'listo', label: 'Listo para Entrega' }
+                    ].map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTemplate(t.id);
+                          setCustomMessage(getWhatsAppTemplateText(selectedWhatsAppTicket, t.id));
+                        }}
+                        className={`p-3 rounded-xl border text-xs font-bold transition-all text-center ${selectedTemplate === t.id ? 'bg-accent-primary/20 border-accent-primary text-accent-primary' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase">Mensaje a Enviar</label>
+                  <textarea
+                    className="w-full bg-[#0d1117] border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold h-36 resize-none leading-relaxed"
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                  />
+                </div>
+
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-gray-500 leading-snug">
+                  <span className="font-bold text-accent-primary uppercase tracking-wider block mb-1">Destinatario</span>
+                  {selectedWhatsAppTicket.client} &bull; <span className="font-mono">{selectedWhatsAppTicket.phone}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendWhatsApp}
+                  className="btn-premium w-full py-4 text-sm font-black uppercase tracking-wider mt-4 flex items-center justify-center gap-2"
+                >
+                  <MessageSquare size={18} />
+                  Enviar Mensaje por WhatsApp
+                </button>
+              </div>
             </div>
           </div>
         )}

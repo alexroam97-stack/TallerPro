@@ -22,7 +22,9 @@ export default function PartsInventory() {
     ticketId: '',
     status: 'pending',
     qcNotes: '',
-    photo: ''
+    photo: '',
+    cost: 0,
+    salePrice: 0
   });
   
   // State para inspección de calidad
@@ -39,6 +41,8 @@ export default function PartsInventory() {
   const [inspectedBy, setInspectedBy] = useState('Técnico Principal');
   const [qcTicketId, setQcTicketId] = useState('');
   const [qcVehicleCompatibility, setQcVehicleCompatibility] = useState('');
+  const [qcCost, setQcCost] = useState(0);
+  const [qcSalePrice, setQcSalePrice] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   
   const fileInputRef = useRef(null);
@@ -72,7 +76,9 @@ export default function PartsInventory() {
       ticketId: '',
       status: 'pending',
       qcNotes: '',
-      photo: ''
+      photo: '',
+      cost: 0,
+      salePrice: 0
     });
     refreshData();
   };
@@ -93,6 +99,8 @@ export default function PartsInventory() {
     setInspectedBy(part.inspectedBy || 'Técnico Principal');
     setQcTicketId(part.ticketId || '');
     setQcVehicleCompatibility(part.vehicleCompatibility || '');
+    setQcCost(part.cost || 0);
+    setQcSalePrice(part.salePrice || 0);
     setIsQCModalOpen(true);
   };
 
@@ -139,7 +147,9 @@ export default function PartsInventory() {
       inspectedBy,
       inspectedAt: new Date().toISOString(),
       ticketId: qcTicketId,
-      vehicleCompatibility: qcVehicleCompatibility
+      vehicleCompatibility: qcVehicleCompatibility,
+      cost: qcCost,
+      salePrice: qcSalePrice
     });
 
     setIsQCModalOpen(false);
@@ -263,6 +273,24 @@ export default function PartsInventory() {
                           : (part.ticketId || 'Sin vincular')}
                       </p>
                     </div>
+                    <div className="col-span-2 pt-2 border-t border-white/5 grid grid-cols-3 gap-2">
+                      <div>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Costo</p>
+                        <p className="font-bold text-gray-300">${(part.cost || 0).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">P. Venta</p>
+                        <p className="font-bold text-accent-primary">${(part.salePrice || 0).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Margen</p>
+                        <p className="font-bold text-accent-success">
+                          {part.salePrice > 0 
+                            ? `${Math.round(((part.salePrice - part.cost) / part.salePrice) * 100)}%` 
+                            : '0%'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Calidad Checklist y Score */}
@@ -385,6 +413,35 @@ export default function PartsInventory() {
                     className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold"
                     value={newPart.qty}
                     onChange={(e) => setNewPart({...newPart, qty: parseInt(e.target.value) || 1})}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 ml-1 uppercase">Costo de Compra ($)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="0.01"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold"
+                    placeholder="0.00"
+                    value={newPart.cost || ''}
+                    onChange={(e) => setNewPart({...newPart, cost: parseFloat(e.target.value) || 0})}
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 ml-1 uppercase">Precio de Venta ($)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="0.01"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold"
+                    placeholder="0.00"
+                    value={newPart.salePrice || ''}
+                    onChange={(e) => setNewPart({...newPart, salePrice: parseFloat(e.target.value) || 0})}
                     required
                   />
                 </div>
@@ -583,6 +640,31 @@ export default function PartsInventory() {
                     value={qcNotes}
                     onChange={(e) => setQcNotes(e.target.value)}
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Costo ($)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="0.01"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                      value={qcCost}
+                      onChange={(e) => setQcCost(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">P. Venta ($)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="0.01"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-white focus:outline-none focus:border-accent-primary transition-colors text-xs font-semibold"
+                      value={qcSalePrice}
+                      onChange={(e) => setQcSalePrice(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">

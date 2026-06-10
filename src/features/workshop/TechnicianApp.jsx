@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Image as ImageIcon } from 'lucide-react';
-import { getTickets, addEventToTicket, getTicketEvents } from '../../services/mockDb';
+import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Image as ImageIcon, Play, Pause, Timer } from 'lucide-react';
+import { getTickets, addEventToTicket, getTicketEvents, updateTimeLogs } from '../../services/mockDb';
 import { generateWhatsAppLink } from '../../services/notifications';
 import { compressImage } from '../../skills/imageUtils';
 
@@ -31,9 +31,34 @@ export default function TechnicianApp() {
   
   const [photos, setPhotos] = useState({});
   const [inventory, setInventory] = useState({});
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isTimerActive, setIsTimerActive] = useState(true);
   
   const fileInputRef = useRef(null);
   const [activeSlot, setActiveSlot] = useState(null);
+
+  useEffect(() => {
+    let interval = null;
+    if (step === 2 && isTimerActive) {
+      interval = setInterval(() => {
+        setElapsedSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [step, isTimerActive]);
+
+  const formatTime = (totalSeconds) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return [
+      hrs > 0 ? String(hrs).padStart(2, '0') : null,
+      String(mins).padStart(2, '0'),
+      String(secs).padStart(2, '0')
+    ].filter(Boolean).join(':');
+  };
 
   useEffect(() => {
     setMockTickets(getTickets());
@@ -43,6 +68,8 @@ export default function TechnicianApp() {
     setSelectedTicket(ticket);
     setPhotos({});
     setInventory(INVENTORY_ITEMS.reduce((acc, item) => ({...acc, [item.id]: false}), {}));
+    setElapsedSeconds(0);
+    setIsTimerActive(true);
     setStep(2);
   };
 
@@ -90,10 +117,11 @@ export default function TechnicianApp() {
     if (selectedTicket) {
       const currentEvents = getTicketEvents(selectedTicket.id);
       const nextEventId = currentEvents.length + 1;
-      // In a real app, we would send the array of photos and the inventory JSON
-      // For this demo, we take the first available photo to satisfy the single photo per event logic
       const firstAvailablePhoto = Object.values(photos)[0] || null;
       addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5), firstAvailablePhoto);
+      
+      // Save elapsed seconds to timeLogs
+      updateTimeLogs(selectedTicket.id, getNextStepName(), elapsedSeconds);
     }
     
     setStep(3);
@@ -193,6 +221,29 @@ export default function TechnicianApp() {
             <div className="mb-6">
               <h2 className="text-4xl font-black text-accent-primary tracking-tighter">{selectedTicket?.id}</h2>
               <p className="text-lg text-gray-400 font-bold uppercase tracking-tight">{selectedTicket?.vehicle}</p>
+            </div>
+
+            {/* Cronómetro Card */}
+            <div className="card-morphism !bg-white/5 border-white/10 p-5 flex items-center justify-between mb-6 shadow-ui">
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-xl ${isTimerActive ? 'bg-accent-primary/20 text-accent-primary animate-pulse' : 'bg-white/5 text-gray-400'}`}>
+                  <Timer size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Cronómetro de etapa ({getNextStepName()})</p>
+                  <p className="text-3xl font-black font-mono tracking-tight text-white mt-0.5">
+                    {formatTime(elapsedSeconds)}
+                  </p>
+                </div>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setIsTimerActive(!isTimerActive)}
+                className={`p-3.5 rounded-xl border font-bold transition-all ${isTimerActive ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20' : 'bg-accent-success/10 border-accent-success/20 text-accent-success hover:bg-accent-success/20'}`}
+              >
+                {isTimerActive ? <Pause size={18} /> : <Play size={18} />}
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto pb-24 space-y-8">

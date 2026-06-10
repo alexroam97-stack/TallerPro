@@ -19,6 +19,9 @@ const defaultTickets = [
     insuranceType: 'particular',
     insuranceCompany: '',
     claimNumber: '',
+    signatureIntake: '',
+    signatureDelivery: '',
+    timeLogs: { "Recepción": 900 },
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
     closedAt: null
   },
@@ -41,6 +44,9 @@ const defaultTickets = [
     insuranceType: 'aseguranza',
     insuranceCompany: 'Qualitas',
     claimNumber: 'SIN-982405',
+    signatureIntake: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAAB4CAYAAAB1ov4vAAAABmJLR0QA/wD/AP+gvaeTAAAAcElEQVR42u3BAQ0AAADCoPdPbQ8HFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPgbNbgAAT/547kAAAAASUVORK5CYII=', // mock placeholder signature
+    signatureDelivery: '',
+    timeLogs: { "Recepción": 1200, "Hojalatería": 3600, "Pintura": 2400 },
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
     closedAt: new Date(Date.now() - 86400000 * 1).toISOString() // 1 day ago (closed)
   },
@@ -76,6 +82,9 @@ export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = ''
     insuranceType,
     insuranceCompany,
     claimNumber,
+    signatureIntake: '',
+    signatureDelivery: '',
+    timeLogs: {},
     createdAt: new Date().toISOString(),
     closedAt: null
   };
@@ -163,6 +172,35 @@ export const updateDamagedPanels = (ticketId, panels) => {
   return null;
 };
 
+export const saveSignature = (ticketId, type, signatureBase64) => {
+  const tickets = getTickets();
+  const index = tickets.findIndex(t => t.id === ticketId);
+  if (index > -1) {
+    if (type === 'intake') {
+      tickets[index].signatureIntake = signatureBase64;
+    } else if (type === 'delivery') {
+      tickets[index].signatureDelivery = signatureBase64;
+    }
+    localStorage.setItem(DB_KEY, JSON.stringify(tickets));
+    return tickets[index];
+  }
+  return null;
+};
+
+export const updateTimeLogs = (ticketId, stageName, elapsedSeconds) => {
+  const tickets = getTickets();
+  const index = tickets.findIndex(t => t.id === ticketId);
+  if (index > -1) {
+    if (!tickets[index].timeLogs) {
+      tickets[index].timeLogs = {};
+    }
+    tickets[index].timeLogs[stageName] = (tickets[index].timeLogs[stageName] || 0) + elapsedSeconds;
+    localStorage.setItem(DB_KEY, JSON.stringify(tickets));
+    return tickets[index];
+  }
+  return null;
+};
+
 const PARTS_DB_KEY = 'tallerpro_parts';
 
 const defaultParts = [
@@ -178,7 +216,9 @@ const defaultParts = [
     photo: '',
     qcChecked: { visual: true, packaging: true, compatibility: true, functional: true },
     inspectedBy: 'Técnico Principal',
-    inspectedAt: new Date(Date.now() - 86400000).toISOString() // 1 day ago
+    inspectedAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+    cost: 1800,
+    salePrice: 2800
   },
   {
     id: 'PRT-K302',
@@ -192,7 +232,9 @@ const defaultParts = [
     photo: '',
     qcChecked: { visual: false, packaging: true, compatibility: true, functional: false },
     inspectedBy: 'Técnico Carrocería',
-    inspectedAt: new Date(Date.now() - 86400000 * 2).toISOString() // 2 days ago
+    inspectedAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
+    cost: 950,
+    salePrice: 1600
   },
   {
     id: 'PRT-H741',
@@ -206,7 +248,9 @@ const defaultParts = [
     photo: '',
     qcChecked: { visual: false, packaging: false, compatibility: false, functional: false },
     inspectedBy: '',
-    inspectedAt: ''
+    inspectedAt: '',
+    cost: 550,
+    salePrice: 1100
   }
 ];
 
@@ -239,7 +283,9 @@ export const addPart = (partData) => {
     photo: partData.photo || '',
     qcChecked: partData.qcChecked || { visual: false, packaging: false, compatibility: false, functional: false },
     inspectedBy: partData.inspectedBy || '',
-    inspectedAt: partData.inspectedAt || ''
+    inspectedAt: partData.inspectedAt || '',
+    cost: parseFloat(partData.cost) || 0,
+    salePrice: parseFloat(partData.salePrice) || 0
   };
   parts.push(newPart);
   saveParts(parts);

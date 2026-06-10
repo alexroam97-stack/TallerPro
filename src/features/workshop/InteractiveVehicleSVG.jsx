@@ -36,9 +36,10 @@ const panels = [
   { id: 'rear-right-fender', d: 'M160,180 L140,210 L155,260 L160,260 Z', name: 'Costado Trasero Der' },
 ];
 
-export default function InteractiveVehicleSVG({ damagedPanels = [], onChange }) {
+export default function InteractiveVehicleSVG({ damagedPanels = [], onChange, readOnly = false }) {
   
   const handlePanelClick = (panelId) => {
+    if (readOnly) return;
     const existing = damagedPanels.find(p => p.panelId === panelId);
     let newPanels = [...damagedPanels];
 
@@ -61,7 +62,9 @@ export default function InteractiveVehicleSVG({ damagedPanels = [], onChange }) 
 
   return (
     <div className="flex flex-col items-center">
-      <p className="text-xs text-gray-400 mb-4 italic text-center">Toca las piezas para marcar daño:<br/>1 Toque = Leve (Amarillo)<br/>2 Toques = Medio (Naranja)<br/>3 Toques = Grave (Rojo)</p>
+      {!readOnly && (
+        <p className="text-xs text-gray-400 mb-4 italic text-center">Toca las piezas para marcar daño:<br/>1 Toque = Leve (Amarillo)<br/>2 Toques = Medio (Naranja)<br/>3 Toques = Grave (Rojo)</p>
+      )}
       <svg width="200" height="300" viewBox="0 0 200 300" className="mx-auto select-none">
         {panels.map(panel => {
           const level = getDamageLevel(panel.id);
@@ -72,7 +75,7 @@ export default function InteractiveVehicleSVG({ damagedPanels = [], onChange }) 
               fill={damageColors[level]}
               stroke={strokeColors[level]}
               strokeWidth="2"
-              className="cursor-pointer transition-all duration-300 hover:brightness-125"
+              className={`transition-all duration-300 hover:brightness-125 ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
               onClick={() => handlePanelClick(panel.id)}
             >
               <title>{panel.name}</title>

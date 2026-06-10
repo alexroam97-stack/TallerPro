@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package, Shield } from 'lucide-react';
-import { getTicket, updateBudgetStatus, getParts } from '../../services/mockDb';
+import { getTicket, updateBudgetStatus, getParts, saveSignature } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
+import InteractiveVehicleSVG from '../workshop/InteractiveVehicleSVG';
+import SignatureCanvas from '../../components/SignatureCanvas';
 
 export default function ClientTracker() {
   const { ticketId } = useParams();
@@ -11,6 +13,8 @@ export default function ClientTracker() {
   const [ticket, setTicket] = useState(null);
   const [parts, setParts] = useState([]);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [deliverySignature, setDeliverySignature] = useState('');
+  const [signatureSaved, setSignatureSaved] = useState(false);
 
   useEffect(() => {
     if (ticketId) {
@@ -145,6 +149,22 @@ export default function ClientTracker() {
             </div>
           ))}
         </div>
+
+        {/* Mapeo de Daños del Vehículo */}
+        {ticket?.damagedPanels && ticket.damagedPanels.length > 0 && (
+          <div className="mt-16 animate-fade-in-up [animation-delay:200ms]">
+            <div className="flex items-center gap-3 mb-6">
+              <Car className="text-accent-primary" size={28} />
+              <h2 className="text-2xl font-black tracking-tight">Daños Registrados al Ingresar</h2>
+            </div>
+            <div className="card-morphism !bg-white/5 border-none p-6 shadow-ui">
+              <InteractiveVehicleSVG 
+                damagedPanels={ticket.damagedPanels} 
+                readOnly={true} 
+              />
+            </div>
+          </div>
+        )}
 
         {/* Parts Section */}
         {parts.length > 0 && (
@@ -325,6 +345,72 @@ export default function ClientTracker() {
             </div>
           </div>
         )}
+        {/* Firmas de Conformidad */}
+        <div className="mt-16 animate-fade-in-up [animation-delay:600ms]">
+          <div className="flex items-center gap-3 mb-6">
+            <Shield className="text-accent-primary" size={28} />
+            <h2 className="text-2xl font-black tracking-tight">Firmas de Conformidad</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Firma de Recepción */}
+            <div className="card-morphism !bg-white/5 border-none p-6 shadow-ui text-center flex flex-col justify-between">
+              <div>
+                <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">Firma de Recepción (Ingreso)</h3>
+                {ticket?.signatureIntake ? (
+                  <div className="bg-white/10 rounded-2xl p-4 border border-white/10 flex items-center justify-center h-32">
+                    <img src={ticket.signatureIntake} alt="Firma de Ingreso" className="max-h-full max-w-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-4 border border-white/5 bg-white/5 flex items-center justify-center h-32 text-gray-500 text-xs font-bold uppercase">
+                    Sin firma de ingreso registrada
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-4 leading-normal">
+                Firma plasmada por el cliente al entregar las llaves en recepción del taller.
+              </p>
+            </div>
+
+            {/* Firma de Entrega */}
+            <div className="card-morphism !bg-white/5 border-none p-6 shadow-ui text-center flex flex-col justify-between">
+              <div>
+                <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">Firma de Entrega (Conformidad)</h3>
+                {ticket?.signatureDelivery || signatureSaved ? (
+                  <div className="bg-white/10 rounded-2xl p-4 border border-white/10 flex items-center justify-center h-32">
+                    <img src={ticket?.signatureDelivery || deliverySignature} alt="Firma de Entrega" className="max-h-full max-w-full object-contain" />
+                  </div>
+                ) : ticket?.status === 'Entrega' || ticket?.closedAt ? (
+                  <div className="space-y-4">
+                    <SignatureCanvas 
+                      onChange={setDeliverySignature} 
+                      placeholder="Firma para autorizar retiro del auto" 
+                    />
+                    <button
+                      type="button"
+                      disabled={!deliverySignature}
+                      onClick={() => {
+                        saveSignature(ticketId, 'delivery', deliverySignature);
+                        setSignatureSaved(true);
+                        setTicket({ ...ticket, signatureDelivery: deliverySignature });
+                      }}
+                      className={`btn-premium w-full py-3 text-xs font-black uppercase tracking-wider ${!deliverySignature ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      Confirmar de Recibido y Finalizar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-4 border border-white/5 bg-white/5 flex items-center justify-center h-32 text-gray-500 text-xs font-bold uppercase leading-normal">
+                    Firma disponible cuando el auto esté listo
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-4 leading-normal">
+                Firma digital de conformidad del cliente al recibir el coche finalizado.
+              </p>
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* Zoom Photo Modal */}

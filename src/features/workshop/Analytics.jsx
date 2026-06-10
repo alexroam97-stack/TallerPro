@@ -1,9 +1,19 @@
 import React, { useMemo } from 'react';
-import { getTickets } from '../../services/mockDb';
-import { Clock, CheckCircle2, Car, TrendingUp } from 'lucide-react';
+import { getTickets, getParts } from '../../services/mockDb';
+import { Clock, CheckCircle2, Car, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
 
 export default function Analytics() {
+  const parts = useMemo(() => getParts(), []);
   const tickets = useMemo(() => getTickets(), []);
+
+  const formatTime = (totalSeconds) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  };
 
   const metrics = useMemo(() => {
     // 1. Cycle Time
@@ -28,8 +38,47 @@ export default function Analytics() {
     const activeTickets = tickets.filter(t => !t.closedAt && t.status !== 'Entrega');
     const occupancyRate = Math.round((activeTickets.length / maxBays) * 100);
 
-    return { avgCycleTime, approvalRate, occupancyRate, activeCount: activeTickets.length, maxBays };
-  }, [tickets]);
+    // 4. Financial Inventory Metrics
+    const totalInventoryValue = parts.reduce((acc, p) => acc + ((p.cost || 0) * (p.qty || 1)), 0);
+
+    const linkedParts = parts.filter(p => p.status === 'approved' && p.ticketId);
+    const partsCost = linkedParts.reduce((acc, p) => acc + ((p.cost || 0) * (p.qty || 1)), 0);
+    const partsRevenue = linkedParts.reduce((acc, p) => acc + ((p.salePrice || 0) * (p.qty || 1)), 0);
+    const partsProfit = partsRevenue - partsCost;
+
+    // 5. Technician stage times average
+    const stageTimeTotals = {};
+    const stageTimeCounts = {};
+    tickets.forEach(t => {
+      if (t.timeLogs) {
+        Object.entries(t.timeLogs).forEach(([stage, seconds]) => {
+          stageTimeTotals[stage] = (stageTimeTotals[stage] || 0) + seconds;
+          stageTimeCounts[stage] = (stageTimeCounts[stage] || 0) + 1;
+        });
+      }
+    });
+
+    const avgStageTimes = Object.keys(stageTimeTotals).map(stage => {
+      const avgSeconds = Math.round(stageTimeTotals[stage] / stageTimeCounts[stage]);
+      return {
+        stage,
+        seconds: avgSeconds,
+        formatted: formatTime(avgSeconds)
+      };
+    });
+
+    return { 
+      avgCycleTime, 
+      approvalRate, 
+      occupancyRate, 
+      activeCount: activeTickets.length, 
+      maxBays,
+      totalInventoryValue,
+      partsRevenue,
+      partsProfit,
+      avgStageTimes
+    };
+  }, [tickets, parts]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -108,6 +157,78 @@ export default function Analytics() {
                 <span className="text-xs font-bold">{metrics.occupancyRate}%</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid Finanzas e Inventario */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="card-morphism !bg-white/5 border-white/10 p-6 flex flex-col justify-between">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-3 rounded-xl bg-accent-success/10 text-accent-success">
+              <DollarSign size={24} />
+            </div>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Finanzas de Refacciones</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 pt-2">
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Valor en Inventario</p>
+              <p className="text-3xl font-black text-white mt-1">${metrics.totalInventoryValue.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-1">Costo total de stock</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Ganancia en Refacciones</p>
+              <p className="text-3xl font-black text-accent-success mt-1">${metrics.partsProfit.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-1">Utilidad en autopartes vendidas</p>
+            </div>
+          </div>
+          
+          <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-gray-400">
+            <span>Ingreso por autopartes: <strong>${metrics.partsRevenue.toLocaleString()}</strong></span>
+            <span>Margen de utilidad promedio: <strong>
+              {metrics.partsRevenue > 0 
+                ? `${Math.round((metrics.partsProfit / metrics.partsRevenue) * 100)}%` 
+                : '0%'}
+            </strong></span>
+          </div>
+        </div>
+
+        {/* Rendimiento de Tiempos por Etapa */}
+        <div className="card-morphism !bg-white/5 border-white/10 p-6 flex flex-col justify-between">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400">
+              <BarChart3 size={24} />
+            </div>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Tiempos Promedio por Etapa</span>
+          </div>
+
+          <div className="space-y-3">
+            {metrics.avgStageTimes.length > 0 ? (
+              metrics.avgStageTimes.map((item, idx) => {
+                // max time to scale bars
+                const maxSeconds = Math.max(...metrics.avgStageTimes.map(x => x.seconds), 1);
+                const widthPercent = Math.max(Math.round((item.seconds / maxSeconds) * 100), 10);
+                return (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-gray-300">
+                      <span>{item.stage}</span>
+                      <span className="text-accent-primary">{item.formatted}</span>
+                    </div>
+                    <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-accent-primary h-full rounded-full transition-all duration-700" 
+                        style={{ width: `${widthPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-6 text-gray-500 font-bold text-xs uppercase">
+                Sin registros de tiempos de técnicos aún
+              </div>
+            )}
           </div>
         </div>
       </div>
