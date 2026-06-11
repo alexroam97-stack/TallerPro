@@ -1,10 +1,24 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getTickets, getParts } from '../../services/mockDb';
 import { Clock, CheckCircle2, Car, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
 
 export default function Analytics() {
-  const parts = useMemo(() => getParts(), []);
-  const tickets = useMemo(() => getTickets(), []);
+  const [parts, setParts] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([getTickets(), getParts()])
+      .then(([tix, prts]) => {
+        setTickets(tix || []);
+        setParts(prts || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching analytics data:', err);
+        setLoading(false);
+      });
+  }, []);
 
   const formatTime = (totalSeconds) => {
     const hrs = Math.floor(totalSeconds / 3600);
@@ -79,6 +93,15 @@ export default function Analytics() {
       avgStageTimes
     };
   }, [tickets, parts]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-4 border-accent-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-gray-400 font-bold tracking-widest text-xs uppercase animate-pulse">Cargando Analíticas...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
