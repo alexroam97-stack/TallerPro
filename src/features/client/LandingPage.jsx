@@ -7,6 +7,7 @@ import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import { compressImage } from '../../skills/imageUtils';
 import { saveSettings } from '../../services/mockDb';
+import DiagnosticShowcase from '../../components/DiagnosticShowcase';
 
 const pricingPlans = [
   { 
@@ -227,16 +228,7 @@ export default function LandingPage() {
 
           {/* Video Intro Showcase */}
           <div className="pt-16 max-w-4xl mx-auto animate-fade-in-up [animation-delay:1000ms]">
-            <div className="relative rounded-[2rem] border border-white/10 bg-black/40 p-3 shadow-ui overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-tr from-accent-primary/15 via-transparent to-accent-secondary/15 pointer-events-none z-20" />
-              <video
-                className="w-full h-auto rounded-[1.5rem] object-cover aspect-video shadow-2xl relative z-10 border border-white/5"
-                src="https://assets.mixkit.co/videos/preview/mixkit-car-engine-diagnostic-computer-screen-close-up-34854-large.mp4"
-                autoPlay
-                muted
-                playsInline
-              />
-            </div>
+            <DiagnosticShowcase />
           </div>
         </div>
       </main>
