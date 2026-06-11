@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SecurityProvider, ProtectedRoute } from './skills/security';
 import LandingPage from './features/client/LandingPage';
@@ -8,18 +8,45 @@ import ClientTracker from './features/client/ClientTracker';
 import ScanRedirect from './features/workshop/ScanRedirect';
 
 function App() {
+  const [ripples, setRipples] = useState([]);
+
   useEffect(() => {
     const handleMouseMove = (e) => {
       document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
       document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
     };
 
+    const handleMouseDown = (e) => {
+      const id = Date.now() + Math.random();
+      const newRipple = {
+        id,
+        x: e.clientX,
+        y: e.clientY
+      };
+      setRipples(prev => [...prev, newRipple]);
+
+      setTimeout(() => {
+        setRipples(prev => prev.filter(r => r.id !== id));
+      }, 800);
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousedown', handleMouseDown);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousedown', handleMouseDown);
+    };
   }, []);
 
   return (
     <SecurityProvider>
+      {ripples.map(r => (
+        <div 
+          key={r.id} 
+          className="click-ripple" 
+          style={{ left: r.x, top: r.y }} 
+        />
+      ))}
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />

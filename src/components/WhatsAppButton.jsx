@@ -12,14 +12,15 @@ export default function WhatsAppButton() {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-8 right-8 z-50 flex items-center gap-3 p-4 rounded-full 
-                 bg-[#25D366] text-white shadow-2xl hover:scale-110 transition-transform 
-                 duration-300 animate-bounce group"
+      className="fixed bottom-8 right-8 z-50 flex items-center gap-2.5 px-5 py-3.5 rounded-2xl 
+                 bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] 
+                 shadow-[0_0_20px_rgba(37,211,102,0.15)] backdrop-blur-md
+                 hover:bg-[#25D366]/20 hover:border-[#25D366]/50 hover:text-white
+                 hover:scale-105 hover:shadow-[0_0_25px_rgba(37,211,102,0.3)]
+                 transition-all duration-300 group font-black text-xs uppercase tracking-wider cursor-pointer"
     >
-      <MessageCircle size={28} />
-      <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-bold whitespace-nowrap">
-        Contactar Soporte
-      </span>
+      <MessageCircle size={18} className="animate-pulse" />
+      <span>Contactar Soporte</span>
     </a>
   );
 }
