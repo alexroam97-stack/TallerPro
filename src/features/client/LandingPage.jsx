@@ -185,10 +185,7 @@ export default function LandingPage() {
         <CanvasMechanicBackground />
         
         <div className="max-w-5xl mx-auto space-y-8 relative z-10">
-          <div className="inline-block px-4 py-1.5 rounded-full liquid-glass text-accent-primary font-medium text-sm mb-2 animate-fade-in-up">
-            🚀 Nueva Versión 2.0 disponible
-          </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-tight animate-fade-in-up [animation-delay:200ms]">
             La plataforma modular para gestionar tu taller <br className="hidden md:block"/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-primary via-white to-accent-secondary">
