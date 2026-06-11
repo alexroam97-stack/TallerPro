@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Image as ImageIcon, Play, Pause, Timer } from 'lucide-react';
+import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Image as ImageIcon, Play, Pause, Timer, LogOut } from 'lucide-react';
 import { getTickets, addEventToTicket, getTicketEvents, updateTimeLogs } from '../../services/mockDb';
 import { generateWhatsAppLink } from '../../services/notifications';
 import { compressImage } from '../../skills/imageUtils';
+import { useAuth } from '../../skills/security';
 
 const INVENTORY_ITEMS = [
   { id: 'gasolina', label: 'Gasolina (>50%)' },
@@ -23,6 +24,7 @@ const PHOTO_SLOTS = [
 
 export default function TechnicianApp() {
   const navigate = useNavigate();
+  const { logout, user } = useAuth();
   const [step, setStep] = useState(1); 
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [mockTickets, setMockTickets] = useState([]);
@@ -249,18 +251,31 @@ export default function TechnicianApp() {
         {step === 1 && (
           <div className="animate-fade-in flex flex-col h-full">
             <div className="flex justify-between items-center mb-8">
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-accent-primary font-bold hover:opacity-80 transition-opacity"
-              >
-                <ChevronLeft size={24} /> PANEL
-              </button>
-              <button 
-                onClick={() => navigate('/')}
-                className="flex items-center gap-2 text-gray-400 font-bold hover:opacity-80 transition-opacity"
-              >
-                <Home size={20} /> INICIO
-              </button>
+              {user?.role === 'admin' ? (
+                <button 
+                  onClick={() => navigate('/dashboard')}
+                  className="flex items-center gap-2 text-accent-primary font-bold hover:opacity-80 transition-opacity"
+                >
+                  <ChevronLeft size={24} /> PANEL
+                </button>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => navigate('/')}
+                  className="flex items-center gap-2 text-gray-400 font-bold hover:opacity-80 transition-opacity"
+                >
+                  <Home size={18} /> INICIO
+                </button>
+                <button 
+                  onClick={logout}
+                  className="flex items-center gap-2 text-red-400 font-bold hover:opacity-80 transition-opacity"
+                  title="Cerrar Sesión"
+                >
+                  <LogOut size={18} /> SALIR
+                </button>
+              </div>
             </div>
             
             <h2 className="text-4xl font-black mb-8 tracking-tighter">ORDEN DE TRABAJO</h2>

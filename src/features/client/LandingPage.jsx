@@ -49,7 +49,7 @@ const pricingPlans = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { loginWithGoogle, loginWithCredentials, registerUser, user } = useAuth();
+  const { loginWithGoogle, loginWithCredentials, registerUser, logout, user } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [ticketSearch, setTicketSearch] = useState('');
   
@@ -162,10 +162,18 @@ export default function LandingPage() {
         <Logo size="md" />
         <div className="flex items-center gap-4">
           {user ? (
-            <button className="btn-premium flex items-center gap-2" onClick={() => navigate(user.role === 'mechanic' ? '/tech' : '/dashboard')}>
-              Panel de Control
-              <ArrowRight size={18} />
-            </button>
+            <div className="flex items-center gap-3">
+              <button className="btn-premium flex items-center gap-2" onClick={() => navigate(user.role === 'mechanic' ? '/tech' : '/dashboard')}>
+                Panel de Control
+                <ArrowRight size={18} />
+              </button>
+              <button 
+                onClick={logout}
+                className="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
           ) : (
             <button 
               className="btn-premium"
