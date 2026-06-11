@@ -1,4 +1,4 @@
-import { getParts, addPart, updatePart, deletePart, checkAuth } from './db.js';
+import { getParts, addPart, updatePart, deletePart, checkAuth, generateSecureId } from './db.js';
 
 export default async function handler(req, res) {
   const { id } = req.query;
@@ -17,8 +17,9 @@ export default async function handler(req, res) {
     }
 
     // Write operations require admin or mechanic roles
-    if (!checkAuth(req, ['admin', 'mechanic'])) {
-      return res.status(403).json({ error: 'Acceso denegado: Se requieren privilegios de taller' });
+    const auth = checkAuth(req, ['admin', 'mechanic']);
+    if (!auth) {
+      return res.status(403).json({ error: 'Acceso denegado' });
     }
 
     if (req.method === 'POST') {
@@ -28,11 +29,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'El nombre de la refacción es requerido' });
       }
 
-      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const newId = `PRT-${randomSuffix}`;
-
       const newPart = {
-        id: newId,
+        id: generateSecureId('PRT'),
         name: partData.name,
         brand: partData.brand || 'Genérica',
         qty: parseInt(partData.qty) || 1,
@@ -62,7 +60,7 @@ export default async function handler(req, res) {
 
       const updated = await updatePart(targetId, fields);
       if (!updated) {
-        return res.status(404).json({ error: 'Refacción no encontrada para actualizar' });
+        return res.status(404).json({ error: 'Refacción no encontrada' });
       }
       return res.status(200).json(updated);
     }
@@ -78,7 +76,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Método no permitido' });
   } catch (err) {
-    console.error(err);
+    console.error('[Parts] Internal error:', err.message);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

@@ -29,6 +29,8 @@ export default function ClientTracker() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
   const [verificationError, setVerificationError] = useState('');
+  const [verifyAttempts, setVerifyAttempts] = useState(0);
+  const [verifyLockUntil, setVerifyLockUntil] = useState(0);
 
   useEffect(() => {
     getSettings()
@@ -65,6 +67,14 @@ export default function ClientTracker() {
   const handleVerifyPhone = (e) => {
     e.preventDefault();
     if (!ticket) return;
+
+    // Rate limiting: max 5 attempts, then 60s lockout
+    const now = Date.now();
+    if (verifyLockUntil > now) {
+      const secsLeft = Math.ceil((verifyLockUntil - now) / 1000);
+      setVerificationError(`Demasiados intentos. Espera ${secsLeft} segundos.`);
+      return;
+    }
     
     const ticketPhone = ticket.phone || '';
     const cleanTicketPhone = ticketPhone.replace(/\D/g, '');
@@ -79,8 +89,17 @@ export default function ClientTracker() {
     if (cleanInput === last4) {
       setIsUnlocked(true);
       setVerificationError('');
+      setVerifyAttempts(0);
     } else {
-      setVerificationError('Número incorrecto. Por favor, verifica con el personal del taller.');
+      const nextAttempts = verifyAttempts + 1;
+      setVerifyAttempts(nextAttempts);
+      if (nextAttempts >= 5) {
+        setVerifyLockUntil(Date.now() + 60000);
+        setVerifyAttempts(0);
+        setVerificationError('Demasiados intentos fallidos. Espera 60 segundos.');
+      } else {
+        setVerificationError(`Número incorrecto. ${5 - nextAttempts} intentos restantes.`);
+      }
     }
   };
 

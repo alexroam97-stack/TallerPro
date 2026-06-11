@@ -4,33 +4,43 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const AuthContext = createContext(null);
 
+const SESSION_KEY = 'tp_session';
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export const SecurityProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const session = localStorage.getItem('tp_session');
-    if (session) {
-      setUser(JSON.parse(session));
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (raw) {
+        const session = JSON.parse(raw);
+        // Enforce session expiry
+        if (session._loginAt && (Date.now() - session._loginAt) > SESSION_MAX_AGE_MS) {
+          localStorage.removeItem(SESSION_KEY);
+        } else if (session.token) {
+          setUser(session);
+        } else {
+          // Legacy session without token — force re-login
+          localStorage.removeItem(SESSION_KEY);
+        }
+      }
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
     }
     setLoading(false);
   }, []);
 
+  const persistSession = (userData) => {
+    const session = { ...userData, _loginAt: Date.now() };
+    setUser(session);
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    return session;
+  };
+
   const loginWithGoogle = async (credentialResponse) => {
     try {
-      if (credentialResponse.credential === 'fake_jwt_for_demo') {
-        const demoUser = {
-          id: 'demo_admin',
-          name: 'Admin Demo',
-          email: 'admin@tallerpro.com',
-          picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000',
-          role: 'admin'
-        };
-        setUser(demoUser);
-        localStorage.setItem('tp_session', JSON.stringify(demoUser));
-        return true;
-      }
-
       // Decode JWT payload (standard OAuth2 ID Token)
       const base64Url = credentialResponse.credential.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -40,9 +50,8 @@ export const SecurityProvider = ({ children }) => {
 
       const googleUser = JSON.parse(jsonPayload);
       
-      // Sync Google user with the backend database
       const email = googleUser.email;
-      const password = 'google_login_' + googleUser.sub;
+      const password = 'google_oauth_' + googleUser.sub;
       const name = googleUser.name;
       const picture = googleUser.picture;
 
@@ -54,27 +63,25 @@ export const SecurityProvider = ({ children }) => {
       });
       
       if (regRes.ok) {
-        const user = await regRes.json();
-        setUser(user);
-        localStorage.setItem('tp_session', JSON.stringify(user));
+        const data = await regRes.json();
+        persistSession(data);
         return true;
       } else if (regRes.status === 409) {
-        // User already exists, try logging in
+        // User already exists, log in
         const loginRes = await fetch('/api/auth?action=login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
         if (loginRes.ok) {
-          const user = await loginRes.json();
-          setUser(user);
-          localStorage.setItem('tp_session', JSON.stringify(user));
+          const data = await loginRes.json();
+          persistSession(data);
           return true;
         }
       }
       return false;
     } catch (error) {
-      console.error('Google Login Error:', error);
+      console.error('Google Login failed');
       return false;
     }
   };
@@ -89,10 +96,8 @@ export const SecurityProvider = ({ children }) => {
       const err = await res.json().catch(() => ({ error: 'Error de autenticación' }));
       throw new Error(err.error || 'Credenciales incorrectas');
     }
-    const user = await res.json();
-    setUser(user);
-    localStorage.setItem('tp_session', JSON.stringify(user));
-    return user;
+    const data = await res.json();
+    return persistSession(data);
   };
 
   const registerUser = async (userData) => {
@@ -105,15 +110,13 @@ export const SecurityProvider = ({ children }) => {
       const err = await res.json().catch(() => ({ error: 'Error al registrar' }));
       throw new Error(err.error || 'No se pudo crear la cuenta');
     }
-    const user = await res.json();
-    setUser(user);
-    localStorage.setItem('tp_session', JSON.stringify(user));
-    return user;
+    const data = await res.json();
+    return persistSession(data);
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('tp_session');
+    localStorage.removeItem(SESSION_KEY);
   };
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy-client-id";
@@ -125,7 +128,6 @@ export const SecurityProvider = ({ children }) => {
       </AuthContext.Provider>
     </GoogleOAuthProvider>
   );
-
 };
 
 export const useAuth = () => useContext(AuthContext);

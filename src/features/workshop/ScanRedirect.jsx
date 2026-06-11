@@ -14,9 +14,18 @@ export default function ScanRedirect() {
 
   useEffect(() => {
     if (ticketId) {
-      const found = getTicket(ticketId);
-      setTicket(found);
-      setChecking(false);
+      setChecking(true);
+      getTicket(ticketId)
+        .then(found => {
+          setTicket(found);
+        })
+        .catch(err => {
+          console.error(err);
+          setTicket(null);
+        })
+        .finally(() => {
+          setChecking(false);
+        });
     }
   }, [ticketId]);
 

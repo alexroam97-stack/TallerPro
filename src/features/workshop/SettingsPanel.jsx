@@ -149,6 +149,18 @@ export default function SettingsPanel() {
               <h3 className="text-sm font-black text-white">Logotipo de la Empresa</h3>
               <p className="text-xs text-gray-500 font-medium max-w-sm">Recomendado formato PNG transparente cuadrado. Se actualizará en el Dashboard, cotizaciones, facturas e interfaz del cliente.</p>
               {isUploading && <span className="text-xs text-accent-primary animate-pulse font-bold block">Comprimiendo logotipo...</span>}
+              {settings.logo && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSettings(prev => ({ ...prev, logo: '' }));
+                  }}
+                  className="mt-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-[10px] font-black uppercase text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all cursor-pointer"
+                >
+                  Quitar Logotipo
+                </button>
+              )}
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import { getTickets, getTicket, addTicket, updateTicket, deleteTicket, checkAuth } from './db.js';
+import { getTickets, getTicket, addTicket, updateTicket, deleteTicket, checkAuth, generateSecureId } from './db.js';
 
 export default async function handler(req, res) {
   const { id } = req.query;
@@ -6,14 +6,17 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       if (id) {
+        // Individual ticket lookup is public (client tracking)
         const ticket = await getTicket(id);
         if (!ticket) {
           return res.status(404).json({ error: 'Ticket no encontrado' });
         }
         return res.status(200).json(ticket);
       } else {
-        if (!checkAuth(req, ['admin', 'mechanic'])) {
-          return res.status(403).json({ error: 'Acceso denegado: Se requieren privilegios de taller' });
+        // Listing all tickets requires staff auth
+        const auth = checkAuth(req, ['admin', 'mechanic']);
+        if (!auth) {
+          return res.status(403).json({ error: 'Acceso denegado' });
         }
         const tickets = await getTickets();
         return res.status(200).json(tickets);
@@ -21,8 +24,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      if (!checkAuth(req, ['admin', 'mechanic'])) {
-        return res.status(403).json({ error: 'Acceso denegado: Se requieren privilegios de taller para crear tickets' });
+      const auth = checkAuth(req, ['admin', 'mechanic']);
+      if (!auth) {
+        return res.status(403).json({ error: 'Acceso denegado' });
       }
 
       const { client, vehicle, serviceType, phone, insuranceType, insuranceCompany, claimNumber } = req.body || {};
@@ -31,12 +35,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Cliente y vehículo son campos requeridos' });
       }
 
-      // Generate secure 4-character suffix for ID to prevent sequential enumeration attacks
-      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const newId = `TKT-${randomSuffix}`;
-
       const newTicket = {
-        id: newId,
+        id: generateSecureId('TKT'),
         client,
         vehicle,
         serviceType: serviceType || 'Mecánica',
@@ -71,28 +71,28 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'El ID del ticket es requerido para actualizar' });
       }
 
-      // Check authorization
-      const isStaff = checkAuth(req, ['admin', 'mechanic']);
-      if (!isStaff) {
-        // If not staff, client is ONLY allowed to update budgetStatus or signatureDelivery
+      const auth = checkAuth(req, ['admin', 'mechanic']);
+      if (!auth) {
+        // Unauthenticated clients may ONLY update budgetStatus or signatureDelivery
         const allowedKeys = ['budgetStatus', 'signatureDelivery'];
         const keys = Object.keys(fields);
         const isAllowed = keys.length > 0 && keys.every(key => allowedKeys.includes(key));
         if (!isAllowed) {
-          return res.status(403).json({ error: 'Acceso denegado: Se requieren privilegios de taller para actualizar estos campos' });
+          return res.status(403).json({ error: 'Acceso denegado' });
         }
       }
 
       const updated = await updateTicket(targetId, fields);
       if (!updated) {
-        return res.status(404).json({ error: 'Ticket no encontrado para actualizar' });
+        return res.status(404).json({ error: 'Ticket no encontrado' });
       }
       return res.status(200).json(updated);
     }
 
     if (req.method === 'DELETE') {
-      if (!checkAuth(req, ['admin'])) {
-        return res.status(403).json({ error: 'Acceso denegado: Se requieren privilegios de administrador para eliminar tickets' });
+      const auth = checkAuth(req, ['admin']);
+      if (!auth) {
+        return res.status(403).json({ error: 'Acceso denegado' });
       }
 
       if (!id) {
@@ -105,8 +105,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Método no permitido' });
   } catch (err) {
-    console.error(err);
+    console.error('[Tickets] Internal error:', err.message);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
-

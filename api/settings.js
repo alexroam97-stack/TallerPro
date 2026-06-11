@@ -8,8 +8,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      if (!checkAuth(req, ['admin'])) {
-        return res.status(403).json({ error: 'Acceso denegado: Privilegios de administrador requeridos' });
+      const auth = checkAuth(req, ['admin']);
+      if (!auth) {
+        return res.status(403).json({ error: 'Acceso denegado' });
       }
       const settings = req.body || {};
       const updated = await saveSettings(settings);
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Método no permitido' });
   } catch (err) {
-    console.error(err);
+    console.error('[Settings] Internal error:', err.message);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

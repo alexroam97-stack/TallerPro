@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import pg from 'pg';
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const { Pool } = pg;
 
@@ -14,7 +16,95 @@ if (databaseUrl) {
   });
 }
 
-// Fallback JSON DB path
+// ─── Auth Token Helpers ────────────────────────────────────────────
+const AUTH_SECRET = process.env.AUTH_SECRET || 'tallerpro_dev_secret_change_in_production';
+const TOKEN_TTL_SECONDS = 86400; // 24 hours
+
+export function signToken(user) {
+  const payload = {
+    id: user.id,
+    role: user.role,
+    email: user.email,
+    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS
+  };
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', AUTH_SECRET)
+    .update(payloadB64)
+    .digest('base64url');
+  return `${payloadB64}.${signature}`;
+}
+
+export function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+
+  const [payloadB64, signature] = parts;
+  const expectedSig = crypto
+    .createHmac('sha256', AUTH_SECRET)
+    .update(payloadB64)
+    .digest('base64url');
+
+  // Constant-time comparison to prevent timing attacks
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null; // Token expired
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Password Helpers ──────────────────────────────────────────────
+const BCRYPT_ROUNDS = 10;
+
+export async function hashPassword(plain) {
+  return bcrypt.hash(plain, BCRYPT_ROUNDS);
+}
+
+export async function comparePassword(plain, hash) {
+  return bcrypt.compare(plain, hash);
+}
+
+// Pre-hashed passwords for seed data (generated with bcrypt rounds=10)
+// These are computed once at module load to avoid blocking on every cold start
+let seedAdminHash = null;
+let seedTechHash = null;
+
+async function getSeedHashes() {
+  if (!seedAdminHash) {
+    seedAdminHash = await hashPassword('tallerpro2026');
+    seedTechHash = await hashPassword('techpro2026');
+  }
+  return { seedAdminHash, seedTechHash };
+}
+
+// ─── Secure ID Generation ──────────────────────────────────────────
+export function generateSecureId(prefix = '') {
+  const id = crypto.randomBytes(6).toString('hex').toUpperCase();
+  return prefix ? `${prefix}-${id}` : id;
+}
+
+// ─── Auth Check (Token-Based) ──────────────────────────────────────
+export function checkAuth(req, allowedRoles = []) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const payload = verifyToken(token);
+
+  if (!payload) return null;
+  if (allowedRoles.length > 0 && !allowedRoles.includes(payload.role)) return null;
+
+  return payload; // { id, role, email, exp }
+}
+
+// ─── Fallback JSON DB ──────────────────────────────────────────────
 const isVercel = process.env.VERCEL || process.env.NOW_BUILD;
 const localDbPath = isVercel 
   ? path.join('/tmp', 'db.json')
@@ -133,7 +223,7 @@ const defaultParts = [
   }
 ];
 
-// Helper to initialize PostgreSQL tables
+// ─── PostgreSQL Initialization ─────────────────────────────────────
 let isDbInitialized = false;
 async function initializePostgres() {
   if (isDbInitialized || !pool) return;
@@ -245,35 +335,39 @@ async function initializePostgres() {
       }
     }
 
-    // Seed users if empty
+    // Seed users if empty (with hashed passwords)
     const checkUsers = await pool.query('SELECT count(*) FROM users');
     if (parseInt(checkUsers.rows[0].count) === 0) {
+      const { seedAdminHash, seedTechHash } = await getSeedHashes();
       await pool.query(
         `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['demo_admin', 'Admin Demo', 'admin@tallerpro.com', 'tallerpro2026', 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', 'admin']
+        ['demo_admin', 'Admin Demo', 'admin@tallerpro.com', seedAdminHash, 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', 'admin']
       );
       await pool.query(
         `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['demo_tech', 'Técnico Demo', 'tech@tallerpro.com', 'techpro2026', 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', 'mechanic']
+        ['demo_tech', 'Técnico Demo', 'tech@tallerpro.com', seedTechHash, 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', 'mechanic']
       );
     }
 
     isDbInitialized = true;
   } catch (err) {
-    console.error('Postgres init error, falling back to local file:', err);
+    console.error('[DB] Postgres init failed:', err.message);
   }
 }
 
-// Read from JSON file DB
+// ─── Local JSON DB ─────────────────────────────────────────────────
 function readLocalJson() {
   if (!fs.existsSync(localDbPath)) {
+    // Hash passwords synchronously for seed data
+    const adminHash = bcrypt.hashSync('tallerpro2026', BCRYPT_ROUNDS);
+    const techHash = bcrypt.hashSync('techpro2026', BCRYPT_ROUNDS);
     const initialData = {
       tickets: defaultTickets,
       parts: defaultParts,
       settings: defaultSettings,
       users: [
-        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: 'tallerpro2026', picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
-        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: 'techpro2026', picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
+        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: adminHash, picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
+        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: techHash, picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
       ]
     };
     fs.writeFileSync(localDbPath, JSON.stringify(initialData, null, 2), 'utf8');
@@ -283,24 +377,25 @@ function readLocalJson() {
     const raw = fs.readFileSync(localDbPath, 'utf8');
     const parsed = JSON.parse(raw);
     if (!parsed.users) {
+      const adminHash = bcrypt.hashSync('tallerpro2026', BCRYPT_ROUNDS);
+      const techHash = bcrypt.hashSync('techpro2026', BCRYPT_ROUNDS);
       parsed.users = [
-        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: 'tallerpro2026', picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
-        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: 'techpro2026', picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
+        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: adminHash, picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
+        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: techHash, picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
       ];
       fs.writeFileSync(localDbPath, JSON.stringify(parsed, null, 2), 'utf8');
     }
     return parsed;
-  } catch (err) {
+  } catch {
     return { tickets: [], parts: [], settings: defaultSettings, users: [] };
   }
 }
 
-// Write to JSON file DB
 function writeLocalJson(data) {
   fs.writeFileSync(localDbPath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// DB Abstraction API
+// ─── Ticket Operations ─────────────────────────────────────────────
 export async function getTickets() {
   if (pool) {
     await initializePostgres();
@@ -317,7 +412,7 @@ export async function getTickets() {
         inventoryChecklist: t.inventorychecklist ? JSON.parse(t.inventorychecklist) : {}
       }));
     } catch (err) {
-      console.error(err);
+      console.error('[DB] getTickets error:', err.message);
     }
   }
   return readLocalJson().tickets;
@@ -341,7 +436,7 @@ export async function getTicket(id) {
         inventoryChecklist: t.inventorychecklist ? JSON.parse(t.inventorychecklist) : {}
       };
     } catch (err) {
-      console.error(err);
+      console.error('[DB] getTicket error:', err.message);
     }
   }
   const tickets = readLocalJson().tickets;
@@ -368,7 +463,7 @@ export async function addTicket(t) {
       );
       return t;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] addTicket error:', err.message);
     }
   }
   const data = readLocalJson();
@@ -404,7 +499,7 @@ export async function updateTicket(id, fields) {
       );
       return merged;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] updateTicket error:', err.message);
     }
   }
   
@@ -426,7 +521,7 @@ export async function deleteTicket(id) {
       await pool.query('DELETE FROM parts WHERE ticketId = $1', [id]);
       return true;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] deleteTicket error:', err.message);
     }
   }
   const data = readLocalJson();
@@ -436,6 +531,7 @@ export async function deleteTicket(id) {
   return true;
 }
 
+// ─── Parts Operations ──────────────────────────────────────────────
 export async function getParts() {
   if (pool) {
     await initializePostgres();
@@ -449,7 +545,7 @@ export async function getParts() {
         qcChecked: p.qcchecked ? JSON.parse(p.qcchecked) : { visual: false, packaging: false, compatibility: false, functional: false }
       }));
     } catch (err) {
-      console.error(err);
+      console.error('[DB] getParts error:', err.message);
     }
   }
   return readLocalJson().parts;
@@ -472,7 +568,7 @@ export async function addPart(p) {
       );
       return p;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] addPart error:', err.message);
     }
   }
   const data = readLocalJson();
@@ -510,7 +606,7 @@ export async function updatePart(id, fields) {
       );
       return merged;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] updatePart error:', err.message);
     }
   }
   
@@ -531,7 +627,7 @@ export async function deletePart(id) {
       await pool.query('DELETE FROM parts WHERE id = $1', [id]);
       return true;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] deletePart error:', err.message);
     }
   }
   const data = readLocalJson();
@@ -540,6 +636,7 @@ export async function deletePart(id) {
   return true;
 }
 
+// ─── Settings Operations ───────────────────────────────────────────
 export async function getSettings() {
   if (pool) {
     await initializePostgres();
@@ -549,7 +646,7 @@ export async function getSettings() {
         return JSON.parse(res.rows[0].value);
       }
     } catch (err) {
-      console.error(err);
+      console.error('[DB] getSettings error:', err.message);
     }
   }
   return readLocalJson().settings;
@@ -566,7 +663,7 @@ export async function saveSettings(settings) {
       );
       return settings;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] saveSettings error:', err.message);
     }
   }
   
@@ -576,20 +673,42 @@ export async function saveSettings(settings) {
   return settings;
 }
 
+// ─── User Operations ───────────────────────────────────────────────
+// PUBLIC: Returns user data WITHOUT password
 export async function getUsers() {
   if (pool) {
     await initializePostgres();
     try {
-      const res = await pool.query('SELECT * FROM users');
+      const res = await pool.query('SELECT id, name, email, picture, role FROM users');
       return res.rows;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] getUsers error:', err.message);
     }
   }
-  return readLocalJson().users || [];
+  return (readLocalJson().users || []).map(({ password, ...safe }) => safe);
 }
 
+// PUBLIC: Returns user data WITHOUT password
 export async function getUserByEmail(email) {
+  if (pool) {
+    await initializePostgres();
+    try {
+      const res = await pool.query('SELECT id, name, email, picture, role FROM users WHERE email = $1', [email]);
+      if (res.rows.length === 0) return null;
+      return res.rows[0];
+    } catch (err) {
+      console.error('[DB] getUserByEmail error:', err.message);
+    }
+  }
+  const users = readLocalJson().users || [];
+  const found = users.find(u => u.email === email);
+  if (!found) return null;
+  const { password, ...safe } = found;
+  return safe;
+}
+
+// INTERNAL: Returns user data WITH password hash (for auth only)
+export async function getUserByEmailWithPassword(email) {
   if (pool) {
     await initializePostgres();
     try {
@@ -597,7 +716,7 @@ export async function getUserByEmail(email) {
       if (res.rows.length === 0) return null;
       return res.rows[0];
     } catch (err) {
-      console.error(err);
+      console.error('[DB] getUserByEmailWithPassword error:', err.message);
     }
   }
   const users = readLocalJson().users || [];
@@ -612,21 +731,16 @@ export async function addUser(u) {
         `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
         [u.id, u.name, u.email, u.password, u.picture, u.role]
       );
-      return u;
+      const { password, ...safe } = u;
+      return safe;
     } catch (err) {
-      console.error(err);
+      console.error('[DB] addUser error:', err.message);
     }
   }
   const data = readLocalJson();
   if (!data.users) data.users = [];
   data.users.push(u);
   writeLocalJson(data);
-  return u;
-}
-
-export function checkAuth(req, allowedRoles = []) {
-  const role = req.headers['x-user-role'];
-  if (!role) return false;
-  if (allowedRoles.length > 0 && !allowedRoles.includes(role)) return false;
-  return true;
+  const { password, ...safe } = u;
+  return safe;
 }
