@@ -7,7 +7,7 @@ import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import { compressImage } from '../../skills/imageUtils';
 import { saveSettings } from '../../services/mockDb';
-import DiagnosticShowcase from '../../components/DiagnosticShowcase';
+import CanvasMechanicBackground from '../../components/CanvasMechanicBackground';
 
 const pricingPlans = [
   { 
@@ -180,7 +180,9 @@ export default function LandingPage() {
 
       {/* 1. Hero Section */}
       <main className="container mx-auto px-6 pt-16 pb-20 relative z-10 text-center">
-        <div className="max-w-5xl mx-auto space-y-8">
+        <CanvasMechanicBackground />
+        
+        <div className="max-w-5xl mx-auto space-y-8 relative z-10">
           <div className="inline-block px-4 py-1.5 rounded-full liquid-glass text-accent-primary font-medium text-sm mb-2 animate-fade-in-up">
             🚀 Nueva Versión 2.0 disponible
           </div>
@@ -224,11 +226,6 @@ export default function LandingPage() {
                 BUSCAR
               </button>
             </div>
-          </div>
-
-          {/* Video Intro Showcase */}
-          <div className="pt-16 max-w-4xl mx-auto animate-fade-in-up [animation-delay:1000ms]">
-            <DiagnosticShowcase />
           </div>
         </div>
       </main>
