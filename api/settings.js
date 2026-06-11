@@ -1,4 +1,4 @@
-import { getSettings, saveSettings } from './db.js';
+import { getSettings, saveSettings, checkAuth } from './db.js';
 
 export default async function handler(req, res) {
   try {
@@ -8,6 +8,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
+      if (!checkAuth(req, ['admin'])) {
+        return res.status(403).json({ error: 'Acceso denegado: Privilegios de administrador requeridos' });
+      }
       const settings = req.body || {};
       const updated = await saveSettings(settings);
       return res.status(200).json(updated);

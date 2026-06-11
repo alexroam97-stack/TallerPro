@@ -1,13 +1,29 @@
 // Cliente de API para sincronizar con la base de datos del backend
 
 const apiFetch = async (url, options = {}) => {
+  // Get active user role for RBAC check on serverless functions
+  const sessionStr = typeof window !== 'undefined' ? localStorage.getItem('tp_session') : null;
+  let role = '';
+  if (sessionStr) {
+    try {
+      const user = JSON.parse(sessionStr);
+      if (user && user.role) {
+        role = user.role;
+      }
+    } catch (e) {
+      console.error('Error parsing session for auth headers:', e);
+    }
+  }
+
   const res = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(role ? { 'X-User-Role': role } : {}),
       ...options.headers
     }
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Error desconocido' }));
     throw new Error(err.error || `Error de red: ${res.status}`);

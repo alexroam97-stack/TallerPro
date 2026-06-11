@@ -1,4 +1,4 @@
-import { getParts, addPart, updatePart, deletePart } from './db.js';
+import { getParts, addPart, updatePart, deletePart, checkAuth } from './db.js';
 
 export default async function handler(req, res) {
   const { id } = req.query;
@@ -14,6 +14,11 @@ export default async function handler(req, res) {
         return res.status(200).json(part);
       }
       return res.status(200).json(parts);
+    }
+
+    // Write operations require admin or mechanic roles
+    if (!checkAuth(req, ['admin', 'mechanic'])) {
+      return res.status(403).json({ error: 'Acceso denegado: Se requieren privilegios de taller' });
     }
 
     if (req.method === 'POST') {

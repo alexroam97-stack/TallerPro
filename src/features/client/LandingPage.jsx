@@ -49,7 +49,7 @@ const pricingPlans = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { loginWithGoogle, loginWithCredentials, user } = useAuth();
+  const { loginWithGoogle, loginWithCredentials, registerUser, user } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [ticketSearch, setTicketSearch] = useState('');
   
@@ -69,62 +69,29 @@ export default function LandingPage() {
   const [regLogo, setRegLogo] = useState('');
   const [isLogoUploading, setIsLogoUploading] = useState(false);
 
-  const handleGoogleSuccess = (credentialResponse) => {
-    if (loginWithGoogle(credentialResponse)) {
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const success = await loginWithGoogle(credentialResponse);
+    if (success) {
       navigate('/dashboard');
+    } else {
+      alert('Error al iniciar sesión con Google.');
     }
   };
 
-  const handleCredentialLogin = (e) => {
+  const handleCredentialLogin = async (e) => {
     e.preventDefault();
     const email = loginEmail.trim() || 'admin@tallerpro.com';
     const password = loginPassword || 'tallerpro2026';
     
-    const savedUser = localStorage.getItem('tp_registered_user');
-    let userToLogin = null;
-    
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      if (parsed.email === email && parsed.password === password) {
-        userToLogin = {
-          id: parsed.id,
-          name: parsed.name,
-          email: parsed.email,
-          picture: parsed.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsed.name)}&background=00f2ff&color=000`,
-          role: 'admin'
-        };
-      }
-    }
-    
-    if (!userToLogin && email === 'admin@tallerpro.com' && password === 'tallerpro2026') {
-      userToLogin = {
-        id: 'demo_admin',
-        name: 'Admin Demo',
-        email: 'admin@tallerpro.com',
-        picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000',
-        role: 'admin'
-      };
-    }
-    
-    if (!userToLogin && email === 'tech@tallerpro.com' && password === 'techpro2026') {
-      userToLogin = {
-        id: 'demo_tech',
-        name: 'Técnico Demo',
-        email: 'tech@tallerpro.com',
-        picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=7000ff&color=fff',
-        role: 'mechanic'
-      };
-    }
-    
-    if (userToLogin) {
-      loginWithCredentials(userToLogin);
-      if (userToLogin.role === 'mechanic') {
+    try {
+      const loggedInUser = await loginWithCredentials(email, password);
+      if (loggedInUser.role === 'mechanic') {
         navigate('/tech');
       } else {
         navigate('/dashboard');
       }
-    } else {
-      alert('Correo o contraseña incorrectos. Si no tienes una cuenta, regístrate en la pestaña "Registrar Taller".');
+    } catch (err) {
+      alert(err.message || 'Correo o contraseña incorrectos. Si no tienes una cuenta, regístrate en la pestaña "Registrar Taller".');
     }
   };
 
@@ -135,41 +102,35 @@ export default function LandingPage() {
       return;
     }
     
-    const newUser = {
-      id: 'usr_' + Math.random().toString(36).substring(2, 9),
-      name: regName,
-      email: regEmail,
-      password: regPassword,
-      picture: regLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(regName)}&background=00f2ff&color=000`
-    };
-    
-    localStorage.setItem('tp_registered_user', JSON.stringify(newUser));
-    
-    const customSettings = {
-      name: regWorkshopName,
-      logo: regLogo || '',
-      phone: regPhone,
-      address: 'Av. de la Reforma 123, Ciudad de México',
-      rfc: 'TPRO120409AA1',
-      defaultIva: 16
-    };
-    
     try {
-      await saveSettings(customSettings);
+      const registeredUser = await registerUser({
+        name: regName,
+        email: regEmail,
+        password: regPassword,
+        picture: regLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(regName)}&background=00f2ff&color=000`,
+        role: 'admin'
+      });
+      
+      const customSettings = {
+        name: regWorkshopName,
+        logo: regLogo || '',
+        phone: regPhone,
+        address: 'Av. de la Reforma 123, Ciudad de México',
+        rfc: 'TPRO120409AA1',
+        defaultIva: 16
+      };
+      
+      try {
+        await saveSettings(customSettings);
+      } catch (err) {
+        console.error('Error saving workshop settings:', err);
+      }
+      
+      alert('¡Registro exitoso! Cuenta y taller creados.');
+      navigate('/dashboard');
     } catch (err) {
-      console.error(err);
+      alert(err.message || 'El correo electrónico ya está registrado o hubo un error.');
     }
-    
-    loginWithCredentials({
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      picture: newUser.picture,
-      role: 'admin'
-    });
-    
-    alert('¡Registro exitoso! Cuenta y taller creados.');
-    navigate('/dashboard');
   };
 
   const handleLogoUpload = async (e) => {

@@ -186,6 +186,15 @@ async function initializePostgres() {
         key TEXT PRIMARY KEY,
         value TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT,
+        picture TEXT,
+        role TEXT
+      );
     `);
     
     // Seed settings if empty
@@ -236,6 +245,19 @@ async function initializePostgres() {
       }
     }
 
+    // Seed users if empty
+    const checkUsers = await pool.query('SELECT count(*) FROM users');
+    if (parseInt(checkUsers.rows[0].count) === 0) {
+      await pool.query(
+        `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
+        ['demo_admin', 'Admin Demo', 'admin@tallerpro.com', 'tallerpro2026', 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', 'admin']
+      );
+      await pool.query(
+        `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
+        ['demo_tech', 'Técnico Demo', 'tech@tallerpro.com', 'techpro2026', 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', 'mechanic']
+      );
+    }
+
     isDbInitialized = true;
   } catch (err) {
     console.error('Postgres init error, falling back to local file:', err);
@@ -248,16 +270,28 @@ function readLocalJson() {
     const initialData = {
       tickets: defaultTickets,
       parts: defaultParts,
-      settings: defaultSettings
+      settings: defaultSettings,
+      users: [
+        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: 'tallerpro2026', picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
+        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: 'techpro2026', picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
+      ]
     };
     fs.writeFileSync(localDbPath, JSON.stringify(initialData, null, 2), 'utf8');
     return initialData;
   }
   try {
     const raw = fs.readFileSync(localDbPath, 'utf8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.users) {
+      parsed.users = [
+        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: 'tallerpro2026', picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
+        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: 'techpro2026', picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
+      ];
+      fs.writeFileSync(localDbPath, JSON.stringify(parsed, null, 2), 'utf8');
+    }
+    return parsed;
   } catch (err) {
-    return { tickets: [], parts: [], settings: defaultSettings };
+    return { tickets: [], parts: [], settings: defaultSettings, users: [] };
   }
 }
 
@@ -540,4 +574,59 @@ export async function saveSettings(settings) {
   data.settings = settings;
   writeLocalJson(data);
   return settings;
+}
+
+export async function getUsers() {
+  if (pool) {
+    await initializePostgres();
+    try {
+      const res = await pool.query('SELECT * FROM users');
+      return res.rows;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  return readLocalJson().users || [];
+}
+
+export async function getUserByEmail(email) {
+  if (pool) {
+    await initializePostgres();
+    try {
+      const res = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      if (res.rows.length === 0) return null;
+      return res.rows[0];
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  const users = readLocalJson().users || [];
+  return users.find(u => u.email === email) || null;
+}
+
+export async function addUser(u) {
+  if (pool) {
+    await initializePostgres();
+    try {
+      await pool.query(
+        `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [u.id, u.name, u.email, u.password, u.picture, u.role]
+      );
+      return u;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  const data = readLocalJson();
+  if (!data.users) data.users = [];
+  data.users.push(u);
+  writeLocalJson(data);
+  return u;
+}
+
+export function checkAuth(req, allowedRoles = []) {
+  const role = req.headers['x-user-role'];
+  if (!role) return false;
+  if (allowedRoles.length > 0 && !allowedRoles.includes(role)) return false;
+  return true;
 }

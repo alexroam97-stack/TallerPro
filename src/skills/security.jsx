@@ -16,7 +16,7 @@ export const SecurityProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const loginWithGoogle = (credentialResponse) => {
+  const loginWithGoogle = async (credentialResponse) => {
     try {
       if (credentialResponse.credential === 'fake_jwt_for_demo') {
         const demoUser = {
@@ -39,27 +39,76 @@ export const SecurityProvider = ({ children }) => {
       }).join(''));
 
       const googleUser = JSON.parse(jsonPayload);
-      const userData = {
-        id: googleUser.sub,
-        name: googleUser.name,
-        email: googleUser.email,
-        picture: googleUser.picture,
-        role: 'admin' // In a real app, this would be validated on the backend
-      };
+      
+      // Sync Google user with the backend database
+      const email = googleUser.email;
+      const password = 'google_login_' + googleUser.sub;
+      const name = googleUser.name;
+      const picture = googleUser.picture;
 
-      setUser(userData);
-      localStorage.setItem('tp_session', JSON.stringify(userData));
-      return true;
+      // Try registering first
+      const regRes = await fetch('/api/auth?action=register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name, picture, role: 'admin' })
+      });
+      
+      if (regRes.ok) {
+        const user = await regRes.json();
+        setUser(user);
+        localStorage.setItem('tp_session', JSON.stringify(user));
+        return true;
+      } else if (regRes.status === 409) {
+        // User already exists, try logging in
+        const loginRes = await fetch('/api/auth?action=login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (loginRes.ok) {
+          const user = await loginRes.json();
+          setUser(user);
+          localStorage.setItem('tp_session', JSON.stringify(user));
+          return true;
+        }
+      }
+      return false;
     } catch (error) {
       console.error('Google Login Error:', error);
       return false;
     }
   };
 
-  const loginWithCredentials = (userData) => {
-    setUser(userData);
-    localStorage.setItem('tp_session', JSON.stringify(userData));
-    return true;
+  const loginWithCredentials = async (email, password) => {
+    const res = await fetch('/api/auth?action=login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Error de autenticación' }));
+      throw new Error(err.error || 'Credenciales incorrectas');
+    }
+    const user = await res.json();
+    setUser(user);
+    localStorage.setItem('tp_session', JSON.stringify(user));
+    return user;
+  };
+
+  const registerUser = async (userData) => {
+    const res = await fetch('/api/auth?action=register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Error al registrar' }));
+      throw new Error(err.error || 'No se pudo crear la cuenta');
+    }
+    const user = await res.json();
+    setUser(user);
+    localStorage.setItem('tp_session', JSON.stringify(user));
+    return user;
   };
 
   const logout = () => {
@@ -71,11 +120,12 @@ export const SecurityProvider = ({ children }) => {
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      <AuthContext.Provider value={{ user, loginWithGoogle, loginWithCredentials, logout, loading }}>
+      <AuthContext.Provider value={{ user, loginWithGoogle, loginWithCredentials, registerUser, logout, loading }}>
         {children}
       </AuthContext.Provider>
     </GoogleOAuthProvider>
   );
+
 };
 
 export const useAuth = () => useContext(AuthContext);

@@ -1,38 +1,54 @@
-export default function handler(req, res) {
-  if (req.method === 'POST') {
-    const { email, password } = req.body || {};
+import { getUserByEmail, addUser } from './db.js';
 
-    if (email === 'admin@tallerpro.com' && password === 'tallerpro2026') {
-      return res.status(200).json({
-        id: 'demo_admin',
-        name: 'Admin Demo',
-        email: 'admin@tallerpro.com',
-        picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000',
-        role: 'admin'
-      });
-    } else if (email === 'tech@tallerpro.com' && password === 'techpro2026') {
-      return res.status(200).json({
-        id: 'demo_tech',
-        name: 'Técnico Demo',
-        email: 'tech@tallerpro.com',
-        picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff',
-        role: 'mechanic'
-      });
+export default async function handler(req, res) {
+  const { action } = req.query;
+
+  try {
+    if (req.method === 'POST') {
+      const { email, password, name, picture, role } = req.body || {};
+
+      if (action === 'register') {
+        if (!email || !password || !name) {
+          return res.status(400).json({ error: 'Faltan campos requeridos para el registro' });
+        }
+
+        const existing = await getUserByEmail(email);
+        if (existing) {
+          return res.status(409).json({ error: 'El correo electrónico ya está registrado' });
+        }
+
+        const newUser = {
+          id: 'usr_' + Math.random().toString(36).substring(2, 9),
+          name,
+          email,
+          password, // En producción se encriptaría con bcrypt
+          picture: picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00f2ff&color=000`,
+          role: role || 'admin'
+        };
+
+        const result = await addUser(newUser);
+        // Retornar datos seguros
+        const { password: _, ...safeUser } = result;
+        return res.status(201).json(safeUser);
+      }
+
+      // Acción de login predeterminada
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Correo y contraseña son campos requeridos' });
+      }
+
+      const user = await getUserByEmail(email);
+      if (user && user.password === password) {
+        const { password: _, ...safeUser } = user;
+        return res.status(200).json(safeUser);
+      }
+
+      return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
     }
 
-    // Direct social/google login bypass
-    if (email && !password) {
-      return res.status(200).json({
-        id: 'social_' + Math.random().toString(36).substring(7),
-        name: email.split('@')[0],
-        email: email,
-        picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(email)}`,
-        role: 'admin'
-      });
-    }
-
-    return res.status(401).json({ error: 'Credenciales inválidas' });
+    return res.status(405).json({ error: 'Método no permitido' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Error interno del servidor de autenticación' });
   }
-
-  return res.status(405).json({ error: 'Método no permitido' });
 }
