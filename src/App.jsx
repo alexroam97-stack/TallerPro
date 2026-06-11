@@ -4,6 +4,7 @@ import LandingPage from './features/client/LandingPage';
 import ShopDashboard from './features/workshop/ShopDashboard';
 import TechnicianApp from './features/workshop/TechnicianApp';
 import ClientTracker from './features/client/ClientTracker';
+import ScanRedirect from './features/workshop/ScanRedirect';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             } 
           />
           <Route path="/tracker/:ticketId" element={<ClientTracker />} />
+          <Route path="/scan/:ticketId" element={<ScanRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

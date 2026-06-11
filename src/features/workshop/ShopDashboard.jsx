@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2 } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical } from 'lucide-react';
 import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
@@ -59,7 +59,9 @@ export default function ShopDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('vehiculos'); // vehiculos, clientes
-  const [selectedQR, setSelectedQR] = useState(null);
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [scanSimulateId, setScanSimulateId] = useState('');
+  const [activeMenuTicketId, setActiveMenuTicketId] = useState(null);
   const [newClient, setNewClient] = useState('');
   const [newVehicle, setNewVehicle] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -97,6 +99,94 @@ export default function ShopDashboard() {
     }
   }, [selectedDetailsTicket, tickets]);
 
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const scanId = query.get('scan');
+    if (scanId && tickets.length > 0) {
+      const found = tickets.find(t => t.id === scanId);
+      if (found) {
+        setSelectedDetailsTicket(found);
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [tickets, navigate]);
+
+  useEffect(() => {
+    if (isScanModalOpen) {
+      if (!window.Html5QrcodeScanner) {
+        const script = document.createElement('script');
+        script.src = "https://unpkg.com/html5-qrcode";
+        script.async = true;
+        script.onload = () => {
+          initializeScanner();
+        };
+        document.body.appendChild(script);
+      } else {
+        setTimeout(initializeScanner, 100);
+      }
+    }
+
+    let scannerInstance = null;
+
+    function initializeScanner() {
+      if (!document.getElementById('qr-reader-workshop')) return;
+      try {
+        const scanner = new window.Html5QrcodeScanner(
+          "qr-reader-workshop", 
+          { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+          },
+          false
+        );
+        
+        scanner.render((decodedText) => {
+          const regex = /\/scan\/(TKT-[A-Z0-9]+)/i;
+          const match = decodedText.match(regex);
+          if (match && match[1]) {
+            const ticketId = match[1];
+            const found = tickets.find(t => t.id === ticketId);
+            if (found) {
+              setSelectedDetailsTicket(found);
+              setIsScanModalOpen(false);
+              scanner.clear();
+            } else {
+              alert(`Pase QR escaneado válido (${ticketId}) pero no se encontró la orden en este taller.`);
+            }
+          } else {
+            if (decodedText.startsWith('TKT-')) {
+              const found = tickets.find(t => t.id === decodedText);
+              if (found) {
+                setSelectedDetailsTicket(found);
+                setIsScanModalOpen(false);
+                scanner.clear();
+              }
+            } else {
+              alert('Formato de código QR inválido. Escanea un Pase de Cliente TallerPro.');
+            }
+          }
+        }, (error) => {
+          // Ignore scanning logs
+        });
+        
+        scannerInstance = scanner;
+      } catch (err) {
+        console.error("Scanner Error:", err);
+      }
+    }
+
+    return () => {
+      if (scannerInstance) {
+        try {
+          scannerInstance.clear();
+        } catch (e) {
+          // Already cleared
+        }
+      }
+    };
+  }, [isScanModalOpen, tickets]);
+
   const getWhatsAppTemplateText = (ticket, templateType) => {
     if (!ticket) return '';
     const trackerUrl = `${window.location.origin}/tracker/${ticket.id}`;
@@ -109,6 +199,8 @@ export default function ShopDashboard() {
         return `Hola *${ticket.client}*, te informamos que hemos comenzado con los trabajos de reparación de tu vehículo *${ticket.vehicle}*. Sigue el avance paso a paso: ${trackerUrl}`;
       case 'listo':
         return `¡Buenas noticias *${ticket.client}*! Tu vehículo *${ticket.vehicle}* ha completado todas las pruebas de calidad y está listo para entrega. Puedes pasar a recogerlo. Ubicación del taller: https://maps.google.com/?q=TallerPro`;
+      case 'pase_qr':
+        return `Hola *${ticket.client}*, tu vehículo *${ticket.vehicle}* ha sido confirmado para reparación. Aquí tienes tu Pase QR de Cliente oficial para control y entrega en el taller: https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(window.location.origin + '/scan/' + ticket.id)}`;
       default:
         return '';
     }
@@ -122,6 +214,16 @@ export default function ShopDashboard() {
 
   useEffect(() => {
     setTickets(getTickets());
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setActiveMenuTicketId(null);
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => {
+      document.removeEventListener('click', handleGlobalClick);
+    };
   }, []);
 
   const handleOpenEditModal = (ticket) => {
@@ -450,11 +552,45 @@ export default function ShopDashboard() {
               </p>
             </div>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="btn-premium flex items-center gap-2 shadow-ui self-end sm:self-auto">
-            <Plus size={24} />
-            Nuevo Ingreso
-          </button>
+          <div className="flex gap-3 self-end sm:self-auto flex-wrap justify-end">
+            <button 
+              onClick={() => setIsScanModalOpen(true)} 
+              className="btn-secondary flex items-center gap-2 !border-accent-primary/30 !text-accent-primary hover:!bg-accent-primary/10 transition-all shadow-ui"
+            >
+              <QrCode size={18} />
+              Escanear QR
+            </button>
+            <button 
+              onClick={() => setIsModalOpen(true)} 
+              className="btn-premium flex items-center gap-2 shadow-ui animate-pulse hover:animate-none"
+            >
+              <Plus size={24} />
+              Nuevo Ingreso
+            </button>
+          </div>
         </header>
+
+        {user?.id === 'demo_admin' && activeTab === 'vehiculos' && (
+          <div className="card-morphism bg-accent-primary/10 border border-accent-primary/20 p-6 mb-8 animate-fade-in-up space-y-4">
+            <h3 className="text-lg font-black text-accent-primary flex items-center gap-2">
+              💡 Guía de Pruebas - Escaneo, Pase QR y Borrado
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-gray-300 font-semibold leading-relaxed">
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-accent-primary uppercase tracking-wider block">1. Escáner de Taller</span>
+                <p>Haz clic en <strong>Escanear QR</strong> arriba. Puedes usar tu cámara web para escanear el QR del cliente o simular el escaneo seleccionando un auto para ver cómo se abre su orden de inmediato.</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-accent-primary uppercase tracking-wider block">2. Confirmar y Generar QR</span>
+                <p>Busca la orden en la tabla, dale clic al botón <strong>TRACKER</strong> de un coche (ej. <strong>TKT-X821</strong>), y en la pestaña del cliente haz clic en <strong>Aceptar Reparación</strong> para simular al cliente. Se generará su Pase QR exclusivo.</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-accent-primary uppercase tracking-wider block">3. Eliminar Vehículos</span>
+                <p>Haz clic en el botón rojo de <strong>ELIMINAR</strong> en la tabla de vehículos o dentro del modal de <strong>DETALLES</strong>. La orden y todas sus piezas vinculadas en "Autopartes" se borrarán del sistema.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'vehiculos' ? (
           <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
@@ -519,68 +655,85 @@ export default function ShopDashboard() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-6">
-                        <div className="flex gap-4">
+                      <td className="px-6 py-6 relative">
+                        <div className="flex items-center gap-2">
                           <button 
                             onClick={() => setSelectedDetailsTicket(ticket)}
-                            className="flex items-center gap-2 text-sm font-bold text-accent-primary hover:text-white transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-primary/10 hover:bg-accent-primary text-accent-primary hover:text-black transition-all text-xs font-black uppercase tracking-wider"
                             title="Ver detalles de la orden"
                           >
-                            <Eye size={16} />
-                            DETALLES
+                            <Eye size={14} />
+                            Detalles
                           </button>
-                          <button 
-                            onClick={() => handleOpenEditModal(ticket)}
-                            className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
-                            title="Editar Vehículo"
-                          >
-                            <Edit size={16} />
-                            EDITAR
-                          </button>
-                          <button 
-                            onClick={() => navigate(`/tracker/${ticket.id}`)}
-                            className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
-                            title="Ver en vivo"
-                          >
-                            <LinkIcon size={16} />
-                            TRACKER
-                          </button>
-                          <button 
-                            onClick={() => setSelectedQR(ticket.id)}
-                            className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
-                            title="Generar código QR"
-                          >
-                            <QrCode size={16} />
-                            QR
-                          </button>
-                          <button 
-                            onClick={() => setSelectedBillingTicket(ticket)}
-                            className="flex items-center gap-2 text-sm font-bold text-accent-success hover:text-white transition-colors"
-                            title="Facturación e IVA"
-                          >
-                            <Receipt size={16} />
-                            BILLING
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setSelectedWhatsAppTicket(ticket);
-                              setCustomMessage(getWhatsAppTemplateText(ticket, 'ingreso'));
-                              setSelectedTemplate('ingreso');
-                            }}
-                            className="flex items-center gap-2 text-sm font-bold text-[#25D366] hover:text-white transition-colors"
-                            title="Notificar por WhatsApp"
-                          >
-                            <MessageSquare size={16} />
-                            WHATSAPP
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteTicket(ticket.id)}
-                            className="flex items-center gap-2 text-sm font-bold text-red-400 hover:text-red-300 transition-colors"
-                            title="Eliminar orden de trabajo"
-                          >
-                            <Trash2 size={16} />
-                            ELIMINAR
-                          </button>
+                          
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuTicketId(activeMenuTicketId === ticket.id ? null : ticket.id);
+                              }}
+                              className={`p-2 rounded-xl border transition-all ${activeMenuTicketId === ticket.id ? 'bg-accent-primary/20 border-accent-primary text-accent-primary' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+                              title="Acciones secundarias"
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+
+                            {activeMenuTicketId === ticket.id && (
+                              <div 
+                                className="absolute right-0 mt-2 w-48 rounded-2xl border border-white/10 bg-[#0d1117]/95 backdrop-blur-sm shadow-2xl p-2 z-30 space-y-1 animate-fade-in-up"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => {
+                                    handleOpenEditModal(ticket);
+                                    setActiveMenuTicketId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-all text-left"
+                                >
+                                  <Edit size={14} className="text-gray-500" /> Editar Vehículo
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    navigate(`/tracker/${ticket.id}`);
+                                    setActiveMenuTicketId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-all text-left"
+                                >
+                                  <LinkIcon size={14} className="text-gray-500" /> Ver Tracker
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedBillingTicket(ticket);
+                                    setActiveMenuTicketId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-300 hover:text-accent-success hover:bg-accent-success/10 rounded-xl transition-all text-left"
+                                >
+                                  <Receipt size={14} className="text-gray-500" /> Facturación
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedWhatsAppTicket(ticket);
+                                    setCustomMessage(getWhatsAppTemplateText(ticket, 'ingreso'));
+                                    setSelectedTemplate('ingreso');
+                                    setActiveMenuTicketId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-300 hover:text-[#25D366] hover:bg-[#25D366]/10 rounded-xl transition-all text-left"
+                                >
+                                  <MessageSquare size={14} className="text-gray-500" /> Notificar (WhatsApp)
+                                </button>
+                                <div className="border-t border-white/5 my-1" />
+                                <button
+                                  onClick={() => {
+                                    handleDeleteTicket(ticket.id);
+                                    setActiveMenuTicketId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-400 hover:text-white hover:bg-red-500/20 rounded-xl transition-all text-left"
+                                >
+                                  <Trash2 size={14} /> Eliminar Orden
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -625,8 +778,14 @@ export default function ShopDashboard() {
 
         {/* Modal Nuevo Ingreso */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-            <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-ui border-white/20 animate-fade-in-up">
+          <div 
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex justify-center items-start p-4 md:p-10 cursor-pointer"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <div 
+              className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-xl shadow-ui border-white/20 animate-fade-in-up my-auto cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
               <header className="flex justify-between items-center mb-10">
                 <h2 className="text-3xl font-black">Registrar Vehículo</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
@@ -919,34 +1078,86 @@ export default function ShopDashboard() {
           </div>
         )}
 
-        {/* Modal QR Code */}
-        {selectedQR && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-            <div className="liquid-glass p-10 rounded-[2.5rem] w-full max-w-sm shadow-ui border-white/20 animate-fade-in-up text-center">
-              <header className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl font-black">QR del Vehículo</h2>
-                <button onClick={() => setSelectedQR(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+        {/* Modal Escáner QR de Cliente */}
+        {isScanModalOpen && (
+          <div 
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex justify-center items-start p-4 md:p-10 cursor-pointer"
+            onClick={() => setIsScanModalOpen(false)}
+          >
+            <div 
+              className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-md shadow-ui border-white/20 animate-fade-in-up my-auto cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <header className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black">Escanear QR de Cliente</h2>
+                <button onClick={() => setIsScanModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
                   <X size={24} />
                 </button>
               </header>
-              <div className="bg-white p-6 rounded-[2rem] inline-block mb-6 shadow-[0_0_50px_rgba(255,255,255,0.1)]">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${selectedQR}`} 
-                  alt="QR Code" 
-                  className="w-48 h-48 block" 
-                />
+
+              <div className="space-y-4">
+                <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                  Apunta con la cámara al Pase QR de Cliente oficial. El sistema abrirá automáticamente la orden de trabajo.
+                </p>
+
+                {/* Container for html5-qrcode scanner */}
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0d1117]">
+                  <div id="qr-reader-workshop" className="w-full text-white bg-transparent" />
+                </div>
+
+                {/* Simulated Scan Selector */}
+                <div className="border-t border-white/10 pt-6 mt-6 space-y-4">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Simular Escaneo de Pase QR (Demo)</p>
+                  <div className="flex gap-2">
+                    <select 
+                      className="flex-1 bg-slate-900 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold"
+                      value={scanSimulateId}
+                      onChange={(e) => setScanSimulateId(e.target.value)}
+                    >
+                      <option value="">-- Selecciona un vehículo --</option>
+                      {tickets.filter(t => t.budgetStatus === 'approved').map(t => (
+                        <option key={t.id} value={t.id}>{t.id} - {t.vehicle} ({t.client})</option>
+                      ))}
+                      {tickets.filter(t => t.budgetStatus !== 'approved').length > 0 && (
+                        <optgroup label="No Autorizados (Demo)">
+                          {tickets.filter(t => t.budgetStatus !== 'approved').map(t => (
+                            <option key={t.id} value={t.id}>{t.id} - {t.vehicle} ({t.client})</option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                    <button 
+                      onClick={() => {
+                        if (scanSimulateId) {
+                          const found = tickets.find(t => t.id === scanSimulateId);
+                          if (found) {
+                            setSelectedDetailsTicket(found);
+                            setIsScanModalOpen(false);
+                          }
+                        }
+                      }}
+                      disabled={!scanSimulateId}
+                      className="btn-premium !py-3 !px-4 rounded-xl text-xs font-black uppercase"
+                    >
+                      Simular
+                    </button>
+                  </div>
+                </div>
               </div>
-              <p className="text-gray-400 font-bold mb-1">TICKET</p>
-              <p className="text-3xl font-black text-accent-primary tracking-tighter mb-4">{selectedQR}</p>
-              <p className="text-sm text-gray-500 font-medium">El técnico puede escanear este código para acceder a la orden de trabajo.</p>
             </div>
           </div>
         )}
 
         {/* Modal WhatsApp Templates */}
         {selectedWhatsAppTicket && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-            <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-lg shadow-ui border-white/20 animate-fade-in-up">
+          <div 
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex justify-center items-start p-4 md:p-10 cursor-pointer"
+            onClick={() => setSelectedWhatsAppTicket(null)}
+          >
+            <div 
+              className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-lg shadow-ui border-white/20 animate-fade-in-up my-auto cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
               <header className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-black flex items-center gap-2">
                   <MessageSquare className="text-accent-primary" />
@@ -965,7 +1176,8 @@ export default function ShopDashboard() {
                       { id: 'ingreso', label: 'Ingreso Vehículo' },
                       { id: 'presupuesto', label: 'Presupuesto Listo' },
                       { id: 'reparacion', label: 'Reparación Iniciada' },
-                      { id: 'listo', label: 'Listo para Entrega' }
+                      { id: 'listo', label: 'Listo para Entrega' },
+                      { id: 'pase_qr', label: 'Pase QR Cliente' }
                     ].map(t => (
                       <button
                         key={t.id}
@@ -1023,15 +1235,21 @@ export default function ShopDashboard() {
 
         {/* Modal Detalles de Orden */}
         {selectedDetailsTicket && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm overflow-y-auto">
-            <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-4xl shadow-ui border-white/20 animate-fade-in-up my-8">
-              <header className="flex justify-between items-center mb-8">
+          <div 
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex justify-center items-start p-4 md:p-10 cursor-pointer"
+            onClick={() => setSelectedDetailsTicket(null)}
+          >
+            <div 
+              className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-4xl shadow-ui border-white/20 animate-fade-in-up my-auto cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
                   <span className="text-[10px] font-black tracking-widest text-accent-primary uppercase">Detalles de la Orden</span>
                   <h2 className="text-3xl font-black text-white">{selectedDetailsTicket.id}</h2>
                   <p className="text-xs text-gray-400 font-bold uppercase">{selectedDetailsTicket.client} &bull; {selectedDetailsTicket.phone}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <button 
                     onClick={() => handleOpenEditModal(selectedDetailsTicket)}
                     className="btn-premium !py-1.5 !px-3 text-xs flex items-center gap-1 font-black"
@@ -1053,6 +1271,86 @@ export default function ShopDashboard() {
                 </div>
               </header>
 
+              {(() => {
+                const stagesList = selectedDetailsTicket.serviceType === 'Hojalatería y Pintura'
+                  ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
+                  : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+                const currentEventsList = selectedDetailsTicket.events || [1];
+                const activeStageNum = currentEventsList.length;
+                
+                return (
+                  <div className="mb-8 p-6 card-morphism !bg-white/5 border-none">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-5 text-center sm:text-left">
+                      Progreso del Vehículo (Haz clic en una etapa para cambiarla)
+                    </p>
+                    <div className="relative flex justify-between items-center w-full px-2">
+                      {/* Connecting Line */}
+                      <div className="absolute left-6 right-6 h-[2px] bg-white/10 z-0" />
+                      
+                      {/* Completed connecting line */}
+                      <div 
+                        className="absolute left-6 h-[2px] bg-accent-primary transition-all duration-500 z-0"
+                        style={{
+                          width: `calc(${((activeStageNum - 1) / 4) * 100}% - 12px)`
+                        }}
+                      />
+                      
+                      {stagesList.map((stageName, index) => {
+                        const stageNum = index + 1;
+                        const isCompleted = currentEventsList.includes(stageNum);
+                        const isActive = stageNum === activeStageNum;
+                        
+                        return (
+                          <button
+                            key={stageName}
+                            onClick={() => {
+                              const allTix = getTickets();
+                              const idx = allTix.findIndex(t => t.id === selectedDetailsTicket.id);
+                              if (idx > -1) {
+                                const t = allTix[idx];
+                                const evts = [];
+                                for (let i = 1; i <= stageNum; i++) {
+                                  evts.push(i);
+                                }
+                                t.events = evts;
+                                t.status = stageName;
+                                if (stageNum === 5 && !t.closedAt) {
+                                  t.closedAt = new Date().toISOString();
+                                }
+                                localStorage.setItem('tallerpro_tickets', JSON.stringify(allTix));
+                                setTickets(allTix);
+                                setSelectedDetailsTicket(t);
+                                
+                                // Auto-notify client via WhatsApp
+                                if (t.phone) {
+                                  const link = generateWhatsAppLink(t.phone, t.client, t.vehicle, stageName, t.id);
+                                  if (link) window.open(link, '_blank');
+                                }
+                              }
+                            }}
+                            className="relative z-10 flex flex-col items-center group cursor-pointer focus:outline-none"
+                            title={`Cambiar a etapa: ${stageName}`}
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs transition-all duration-300 border
+                              ${isCompleted ? 'bg-accent-success border-accent-success text-black scale-110 shadow-[0_0_15px_rgba(0,229,153,0.3)]' :
+                                isActive ? 'bg-accent-primary border-accent-primary text-black scale-125 shadow-[0_0_20px_rgba(0,242,255,0.4)] animate-pulse' :
+                                'bg-[#080b10] border-white/20 text-gray-500 hover:border-white/40 hover:text-white'}`}
+                            >
+                              {stageNum}
+                            </div>
+                            <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider mt-2.5 transition-colors duration-300
+                              ${isCompleted ? 'text-accent-success' : isActive ? 'text-accent-primary' : 'text-gray-500 group-hover:text-white'}`}
+                            >
+                              {stageName}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                 {/* Left Column: Client & Vehicle Info */}
                 <div className="space-y-6">
@@ -1072,19 +1370,6 @@ export default function ShopDashboard() {
                         <span className="inline-block px-3 py-1 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-bold border border-accent-primary/20">
                           {selectedDetailsTicket.status.toUpperCase()}
                         </span>
-                        {(!selectedDetailsTicket.events || selectedDetailsTicket.events.length < 5) ? (
-                          <button
-                            onClick={() => handleAdvanceStage(selectedDetailsTicket)}
-                            className="px-2 py-1 rounded bg-accent-primary text-black font-black text-[10px] hover:bg-white transition-all uppercase"
-                            title="Avanzar vehículo a la siguiente etapa"
-                          >
-                            Avanzar &rarr;
-                          </button>
-                        ) : (
-                          <span className="text-[9px] font-bold text-accent-success flex items-center gap-1 uppercase tracking-wider">
-                            <Check size={10} /> Listo
-                          </span>
-                        )}
                       </div>
                     </div>
                     <div>
@@ -1097,6 +1382,19 @@ export default function ShopDashboard() {
                         </div>
                       )}
                     </div>
+                    {selectedDetailsTicket.budgetStatus === 'approved' && (
+                      <div className="border-t border-white/10 pt-4 flex flex-col items-center text-center space-y-2">
+                        <p className="text-[10px] text-gray-500 font-bold uppercase">Pase QR de Cliente (Activo)</p>
+                        <div className="bg-white p-2 rounded-2xl inline-block shadow-md">
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/scan/${selectedDetailsTicket.id}`)}`}
+                            alt="QR Cliente"
+                            className="w-24 h-24 block shadow-inner"
+                          />
+                        </div>
+                        <p className="text-[9px] text-gray-400 font-medium">Este QR es exclusivo para el cliente. Escanéalo en el taller para identificar el auto.</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Time spent */}
@@ -1282,8 +1580,17 @@ export default function ShopDashboard() {
 
         {/* Modal Editar Vehículo */}
         {isEditModalOpen && selectedEditTicket && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-            <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-ui border-white/20 animate-fade-in-up">
+          <div 
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex justify-center items-start p-4 md:p-10 cursor-pointer"
+            onClick={() => {
+              setIsEditModalOpen(false);
+              setSelectedEditTicket(null);
+            }}
+          >
+            <div 
+              className="liquid-glass p-8 md:p-10 rounded-[2.5rem] w-full max-w-xl shadow-ui border-white/20 animate-fade-in-up my-auto cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
               <header className="flex justify-between items-center mb-10">
                 <div>
                   <span className="text-[10px] font-black tracking-widest text-accent-primary uppercase">Modificar Orden</span>

@@ -49,7 +49,14 @@ export default function ClientTracker() {
     // Simular notificación al taller vía WhatsApp
     const cleanShopPhone = shopPhone.replace(/\D/g, '');
     const actionText = status === 'approved' ? 'ACEPTADO' : 'DECLINADO';
-    const message = `Hola, soy el cliente del ticket ${ticketId} (${ticket.vehicle}). He ${actionText} el presupuesto.`;
+    
+    let message = `Hola, soy el cliente del ticket ${ticketId} (${ticket.vehicle}). He ${actionText} el presupuesto.`;
+    if (status === 'approved') {
+      const scanUrl = `${window.location.origin}/scan/${ticketId}`;
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
+      message = `Hola, he confirmado la reparación de mi vehículo *${ticket.vehicle}* (Ticket: *${ticketId}*). Aquí está mi Pase QR de Cliente para el taller: ${qrImageUrl}`;
+    }
+    
     window.open(`https://wa.me/${cleanShopPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -396,8 +403,28 @@ export default function ClientTracker() {
                     </div>
                   </>
                 ) : (
-                  <div className={`px-6 py-4 rounded-xl font-bold border ${ticket.budgetStatus === 'approved' ? 'bg-accent-success/10 border-accent-success text-accent-success' : 'bg-red-500/10 border-red-500 text-red-400'}`}>
-                    {ticket.budgetStatus === 'approved' ? 'PRESUPUESTO AUTORIZADO' : 'PRESUPUESTO DECLINADO'}
+                  <div className="flex flex-col items-center gap-6 w-full">
+                    <div className={`px-6 py-4 rounded-xl font-bold border w-full text-center ${ticket.budgetStatus === 'approved' ? 'bg-accent-success/10 border-accent-success text-accent-success' : 'bg-red-500/10 border-red-500 text-red-400'}`}>
+                      {ticket.budgetStatus === 'approved' ? 'PRESUPUESTO AUTORIZADO' : 'PRESUPUESTO DECLINADO'}
+                    </div>
+                    {ticket.budgetStatus === 'approved' && (
+                      <div className="flex flex-col items-center text-center p-6 bg-accent-success/5 border border-accent-success/20 rounded-2xl w-full max-w-sm space-y-4 animate-fade-in-up">
+                        <div>
+                          <p className="text-[10px] text-accent-success font-black tracking-widest uppercase">Tu Pase QR de Cliente</p>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">EXCLUSIVO PARA TI</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-3xl shadow-[0_0_30px_rgba(0,242,255,0.1)]">
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/scan/${ticket.id}`)}`}
+                            alt="Pase QR Cliente"
+                            className="w-40 h-40 block"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-300 font-medium leading-relaxed">
+                          El personal del taller escaneará este código para identificar tu auto y actualizar su estatus instantáneamente.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

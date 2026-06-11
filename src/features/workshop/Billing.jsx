@@ -116,19 +116,25 @@ export default function Billing({ ticket, onClose, onUpdate }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="liquid-glass p-8 rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-ui border-white/20 animate-fade-in-up">
-        <header className="flex justify-between items-center mb-8">
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex justify-center items-start p-4 md:p-10 cursor-pointer animate-fade-in"
+      onClick={onClose}
+    >
+      <div 
+        className="liquid-glass p-8 rounded-[2.5rem] w-full max-w-4xl shadow-ui border-white/20 animate-fade-in-up my-auto cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-accent-primary/20 text-accent-primary">
+            <div className="p-3 rounded-2xl bg-accent-primary/20 text-accent-primary shrink-0">
               <Receipt size={32} />
             </div>
             <div>
-              <h2 className="text-3xl font-black tracking-tight">Presupuesto y Facturación</h2>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">Presupuesto y Facturación</h2>
               <p className="text-gray-400 font-bold tracking-widest text-xs uppercase">TICKET: {ticket.id}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors self-end sm:self-auto">
             <X size={28} />
           </button>
         </header>
@@ -357,8 +363,14 @@ export default function Billing({ ticket, onClose, onUpdate }) {
 
       {/* Modal Factura CFDI */}
       {showInvoice && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-[#0b0e14] p-8 md:p-10 rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-white/10 shadow-ui animate-fade-in-up text-left text-white relative">
+        <div 
+          className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-sm flex justify-center items-start p-4 md:p-10 cursor-pointer"
+          onClick={() => setShowInvoice(false)}
+        >
+          <div 
+            className="bg-[#0b0e14] p-8 md:p-10 rounded-[2.5rem] w-full max-w-3xl border border-white/10 shadow-ui animate-fade-in-up text-left text-white relative my-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button 
               onClick={() => setShowInvoice(false)} 
               className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 transition-colors"
