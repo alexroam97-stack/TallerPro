@@ -39,7 +39,7 @@ export const getTicket = async (ticketId) => {
   return apiFetch(`/api/tickets?id=${ticketId}`);
 };
 
-export const addTicket = async (client, vehicle, serviceType = 'Mecánica', phone = '', insuranceType = 'particular', insuranceCompany = '', claimNumber = '') => {
+export const addTicket = async (client, vehicle, serviceType = 'Mecánica', phone = '', insuranceType = 'particular', insuranceCompany = '', claimNumber = '', email = '') => {
   return apiFetch('/api/tickets', {
     method: 'POST',
     body: JSON.stringify({
@@ -49,7 +49,8 @@ export const addTicket = async (client, vehicle, serviceType = 'Mecánica', phon
       phone,
       insuranceType,
       insuranceCompany,
-      claimNumber
+      claimNumber,
+      email
     })
   });
 };

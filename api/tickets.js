@@ -29,7 +29,7 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Acceso denegado' });
       }
 
-      const { client, vehicle, serviceType, phone, insuranceType, insuranceCompany, claimNumber } = req.body || {};
+      const { client, vehicle, serviceType, phone, insuranceType, insuranceCompany, claimNumber, email, clientPhoto, vehiclePhoto } = req.body || {};
       
       if (!client || !vehicle) {
         return res.status(400).json({ error: 'Cliente y vehículo son campos requeridos' });
@@ -46,6 +46,9 @@ export default async function handler(req, res) {
         items: [],
         billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
         phone: phone || '',
+        email: email || '',
+        clientPhoto: clientPhoto || '',
+        vehiclePhoto: vehiclePhoto || '',
         budgetStatus: 'pending',
         damagedPanels: [],
         insuranceType: insuranceType || 'particular',

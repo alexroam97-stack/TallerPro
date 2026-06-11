@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical, Camera, Mail, Phone, Calendar, DollarSign, ArrowRight } from 'lucide-react';
 import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs, updateTicket } from '../../services/api';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
@@ -11,6 +11,7 @@ import InteractiveVehicleSVG from './InteractiveVehicleSVG';
 import Analytics from './Analytics';
 import PartsInventory from './PartsInventory';
 import SettingsPanel from './SettingsPanel';
+import { compressImage } from '../../skills/imageUtils';
 
 const getSuggestedSatKey = (description, type, serviceType) => {
   const desc = description.toLowerCase();
@@ -72,6 +73,11 @@ export default function ShopDashboard() {
   const [newInsuranceCompany, setNewInsuranceCompany] = useState('');
   const [newClaimNumber, setNewClaimNumber] = useState('');
   const [newSignatureIntake, setNewSignatureIntake] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newClientPhoto, setNewClientPhoto] = useState('');
+  const [newVehiclePhoto, setNewVehiclePhoto] = useState('');
+  const [isClientPhotoCompressing, setIsClientPhotoCompressing] = useState(false);
+  const [isVehiclePhotoCompressing, setIsVehiclePhotoCompressing] = useState(false);
   const [selectedWhatsAppTicket, setSelectedWhatsAppTicket] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState('ingreso');
   const [customMessage, setCustomMessage] = useState('');
@@ -88,6 +94,16 @@ export default function ShopDashboard() {
   const [editInsuranceCompany, setEditInsuranceCompany] = useState('');
   const [editClaimNumber, setEditClaimNumber] = useState('');
   const [editDamagedPanels, setEditDamagedPanels] = useState([]);
+
+  // CRM Panel State
+  const [crmSearch, setCrmSearch] = useState('');
+  const [selectedCrmClient, setSelectedCrmClient] = useState(null);
+  const [crmEditPhone, setCrmEditPhone] = useState('');
+  const [crmEditEmail, setCrmEditEmail] = useState('');
+  const [crmEditMode, setCrmEditMode] = useState(false);
+  const [crmClientPhotoCompressing, setCrmClientPhotoCompressing] = useState(false);
+  const [crmVehiclePhotoCompressing, setCrmVehiclePhotoCompressing] = useState(false);
+  const [crmSaving, setCrmSaving] = useState(false);
 
   useEffect(() => {
     if (selectedDetailsTicket) {
@@ -378,7 +394,8 @@ export default function ShopDashboard() {
         newPhone,
         newInsuranceType,
         newInsuranceCompany,
-        newClaimNumber
+        newClaimNumber,
+        newEmail
       );
       
       if (newSignatureIntake) {
@@ -408,7 +425,9 @@ export default function ShopDashboard() {
       await updateTicket(createdTicket.id, {
         damagedPanels: newDamagedPanels,
         items: newBudgetItems,
-        signatureIntake: newSignatureIntake
+        signatureIntake: newSignatureIntake,
+        clientPhoto: newClientPhoto,
+        vehiclePhoto: newVehiclePhoto
       });
       
       const allTix = await getTickets();
@@ -418,6 +437,9 @@ export default function ShopDashboard() {
       setNewClient('');
       setNewVehicle('');
       setNewPhone('');
+      setNewEmail('');
+      setNewClientPhoto('');
+      setNewVehiclePhoto('');
       setNewBudgetItems([]);
       setNewDamagedPanels([]);
       setNewSignatureIntake('');
@@ -767,33 +789,335 @@ export default function ShopDashboard() {
           <PartsInventory />
         ) : activeTab === 'configuracion' ? (
           <SettingsPanel />
-        ) : (
-          <div className="card-morphism animate-fade-in-up [animation-delay:200ms]">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-white/10 text-gray-400 text-sm font-bold uppercase tracking-wider">
-                    <th className="px-6 py-4">Cliente</th>
-                    <th className="px-6 py-4">Vehículo(s)</th>
-                    <th className="px-6 py-4">Tickets Activos</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {Array.from(new Set(tickets.map(t => t.client))).map(clientName => {
-                    const clientTickets = tickets.filter(t => t.client === clientName);
+        ) : (() => {
+          // ── CRM Module ────────────────────────────────────────────────
+          // Derive a unique client list from tickets
+          const allClientNames = Array.from(new Set(tickets.map(t => t.client).filter(Boolean)));
+          const filteredClients = allClientNames.filter(name =>
+            name.toLowerCase().includes(crmSearch.toLowerCase())
+          );
+
+          const handleSelectCrmClient = (name) => {
+            const clientTickets = tickets.filter(t => t.client === name);
+            const latest = clientTickets[clientTickets.length - 1] || {};
+            setSelectedCrmClient({ name, tickets: clientTickets, latest });
+            setCrmEditPhone(latest.phone || '');
+            setCrmEditEmail(latest.email || '');
+            setCrmEditMode(false);
+          };
+
+          const handleCrmSave = async () => {
+            if (!selectedCrmClient) return;
+            setCrmSaving(true);
+            try {
+              const latest = selectedCrmClient.latest;
+              await updateTicket(latest.id, {
+                phone: crmEditPhone,
+                email: crmEditEmail,
+                clientPhoto: latest.clientPhoto,
+                vehiclePhoto: latest.vehiclePhoto,
+              });
+              // Refresh tickets
+              const fresh = await getTickets();
+              setTickets(fresh);
+              const refreshed = fresh.filter(t => t.client === selectedCrmClient.name);
+              const newLatest = refreshed[refreshed.length - 1] || {};
+              setSelectedCrmClient({ name: selectedCrmClient.name, tickets: refreshed, latest: newLatest });
+              setCrmEditPhone(newLatest.phone || '');
+              setCrmEditEmail(newLatest.email || '');
+              setCrmEditMode(false);
+            } catch (err) {
+              console.error('CRM save error', err);
+            }
+            setCrmSaving(false);
+          };
+
+          const handleCrmPhotoUpload = async (type, file) => {
+            if (!file || !selectedCrmClient) return;
+            if (type === 'client') setCrmClientPhotoCompressing(true);
+            else setCrmVehiclePhotoCompressing(true);
+            try {
+              const compressed = await compressImage(file, 400, 0.8);
+              const latest = selectedCrmClient.latest;
+              const patch = type === 'client'
+                ? { clientPhoto: compressed, phone: latest.phone, email: latest.email, vehiclePhoto: latest.vehiclePhoto }
+                : { vehiclePhoto: compressed, phone: latest.phone, email: latest.email, clientPhoto: latest.clientPhoto };
+              await updateTicket(latest.id, patch);
+              const fresh = await getTickets();
+              setTickets(fresh);
+              const refreshed = fresh.filter(t => t.client === selectedCrmClient.name);
+              const newLatest = refreshed[refreshed.length - 1] || {};
+              setSelectedCrmClient({ name: selectedCrmClient.name, tickets: refreshed, latest: newLatest });
+            } catch (err) {
+              console.error('CRM photo error', err);
+            }
+            if (type === 'client') setCrmClientPhotoCompressing(false);
+            else setCrmVehiclePhotoCompressing(false);
+          };
+
+          const sc = selectedCrmClient;
+
+          return (
+            <div className="animate-fade-in-up [animation-delay:200ms] flex gap-6 h-[calc(100vh-18rem)] min-h-[500px]">
+              {/* ── Sidebar ── */}
+              <div className="w-72 flex-shrink-0 card-morphism flex flex-col overflow-hidden">
+                <div className="p-4 border-b border-white/10">
+                  <div className="relative">
+                    <Users size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Buscar cliente..."
+                      value={crmSearch}
+                      onChange={e => setCrmSearch(e.target.value)}
+                      className="input-field pl-9 py-2 text-sm w-full"
+                    />
+                  </div>
+                </div>
+                <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                  {filteredClients.length === 0 && (
+                    <p className="text-center text-gray-500 text-sm py-8">Sin resultados</p>
+                  )}
+                  {filteredClients.map(name => {
+                    const ct = tickets.filter(t => t.client === name);
+                    const lt = ct[ct.length - 1] || {};
+                    const isSelected = sc?.name === name;
                     return (
-                      <tr key={clientName} className="group hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-6 font-black text-accent-primary">{clientName}</td>
-                        <td className="px-6 py-6 text-gray-400 font-medium">{clientTickets.map(t => t.vehicle).join(', ')}</td>
-                        <td className="px-6 py-6 font-bold">{clientTickets.length}</td>
-                      </tr>
+                      <button
+                        key={name}
+                        onClick={() => handleSelectCrmClient(name)}
+                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all ${
+                          isSelected
+                            ? 'bg-accent-primary/20 border border-accent-primary/40'
+                            : 'hover:bg-white/5 border border-transparent'
+                        }`}
+                      >
+                        {lt.clientPhoto ? (
+                          <img src={lt.clientPhoto} alt={name} className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-accent-primary/30" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-accent-primary font-black text-sm">{name.charAt(0).toUpperCase()}</span>
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate text-white">{name}</p>
+                          <p className="text-xs text-gray-500 truncate">{ct.length} ticket{ct.length !== 1 ? 's' : ''} · {lt.vehicle || '—'}</p>
+                        </div>
+                      </button>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
+
+              {/* ── Detail Panel ── */}
+              <div className="flex-1 card-morphism overflow-y-auto">
+                {!sc ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center gap-4">
+                    <div className="w-20 h-20 rounded-full bg-accent-primary/10 flex items-center justify-center">
+                      <Users size={32} className="text-accent-primary/50" />
+                    </div>
+                    <p className="text-gray-400 font-semibold">Selecciona un cliente para ver su expediente</p>
+                  </div>
+                ) : (
+                  <div className="p-6 space-y-6">
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-5">
+                        {/* Client photo */}
+                        <div className="relative group/photo">
+                          {sc.latest.clientPhoto ? (
+                            <img src={sc.latest.clientPhoto} alt={sc.name} className="w-20 h-20 rounded-2xl object-cover ring-4 ring-accent-primary/30" />
+                          ) : (
+                            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-accent-primary/30 to-accent-primary/10 flex items-center justify-center">
+                              <span className="text-accent-primary font-black text-3xl">{sc.name.charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                          <label
+                            htmlFor="crm-client-photo-input"
+                            className="absolute inset-0 rounded-2xl bg-black/50 flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity cursor-pointer"
+                            title="Cambiar foto de cliente"
+                          >
+                            {crmClientPhotoCompressing ? (
+                              <div className="w-5 h-5 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Camera size={18} className="text-white" />
+                            )}
+                          </label>
+                          <input
+                            id="crm-client-photo-input"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={e => handleCrmPhotoUpload('client', e.target.files[0])}
+                          />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-white">{sc.name}</h2>
+                          <p className="text-sm text-gray-400 font-medium mt-1">{sc.tickets.length} servicio{sc.tickets.length !== 1 ? 's' : ''} registrado{sc.tickets.length !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        {!crmEditMode ? (
+                          <button
+                            onClick={() => setCrmEditMode(true)}
+                            className="btn-secondary flex items-center gap-2 text-sm !py-2"
+                          >
+                            <Edit size={14} /> Editar
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => setCrmEditMode(false)}
+                              className="btn-secondary flex items-center gap-2 text-sm !py-2"
+                            >
+                              <X size={14} /> Cancelar
+                            </button>
+                            <button
+                              onClick={handleCrmSave}
+                              disabled={crmSaving}
+                              className="btn-premium flex items-center gap-2 text-sm !py-2"
+                            >
+                              {crmSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Check size={14} />}
+                              Guardar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contact info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Teléfono</label>
+                        {crmEditMode ? (
+                          <input
+                            type="tel"
+                            value={crmEditPhone}
+                            onChange={e => setCrmEditPhone(e.target.value)}
+                            className="input-field w-full text-sm"
+                            placeholder="+52 000 000 0000"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Phone size={14} className="text-accent-primary flex-shrink-0" />
+                            <span className="font-semibold text-sm">{sc.latest.phone || <span className="text-gray-500">—</span>}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Email</label>
+                        {crmEditMode ? (
+                          <input
+                            type="email"
+                            value={crmEditEmail}
+                            onChange={e => setCrmEditEmail(e.target.value)}
+                            className="input-field w-full text-sm"
+                            placeholder="cliente@email.com"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Mail size={14} className="text-accent-primary flex-shrink-0" />
+                            <span className="font-semibold text-sm break-all">{sc.latest.email || <span className="text-gray-500">—</span>}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Outreach quick-actions */}
+                    <div className="flex flex-wrap gap-3">
+                      {sc.latest.phone && (
+                        <a
+                          href={generateWhatsAppLink(sc.latest.phone, `Hola ${sc.name}, le contactamos desde el taller.`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary flex items-center gap-2 text-sm !py-2 !border-green-500/40 !text-green-400 hover:!bg-green-500/10"
+                        >
+                          <MessageSquare size={14} /> WhatsApp
+                        </a>
+                      )}
+                      {sc.latest.phone && (
+                        <a
+                          href={`tel:${sc.latest.phone}`}
+                          className="btn-secondary flex items-center gap-2 text-sm !py-2 !border-blue-500/40 !text-blue-400 hover:!bg-blue-500/10"
+                        >
+                          <Phone size={14} /> Llamar
+                        </a>
+                      )}
+                      {sc.latest.email && (
+                        <a
+                          href={`mailto:${sc.latest.email}`}
+                          className="btn-secondary flex items-center gap-2 text-sm !py-2 !border-purple-500/40 !text-purple-400 hover:!bg-purple-500/10"
+                        >
+                          <Mail size={14} /> Email
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Vehicle photos */}
+                    {(sc.latest.vehiclePhoto || true) && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Foto del Vehículo</label>
+                        <div className="relative group/vphoto w-40 h-28">
+                          {sc.latest.vehiclePhoto ? (
+                            <img src={sc.latest.vehiclePhoto} alt="Vehículo" className="w-full h-full object-cover rounded-xl ring-2 ring-white/10" />
+                          ) : (
+                            <div className="w-full h-full rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center gap-1">
+                              <Car size={24} className="text-gray-600" />
+                              <span className="text-xs text-gray-600">Sin foto</span>
+                            </div>
+                          )}
+                          <label
+                            htmlFor="crm-vehicle-photo-input"
+                            className="absolute inset-0 rounded-xl bg-black/50 flex items-center justify-center opacity-0 group-hover/vphoto:opacity-100 transition-opacity cursor-pointer"
+                            title="Cambiar foto del vehículo"
+                          >
+                            {crmVehiclePhotoCompressing ? (
+                              <div className="w-5 h-5 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Camera size={18} className="text-white" />
+                            )}
+                          </label>
+                          <input
+                            id="crm-vehicle-photo-input"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={e => handleCrmPhotoUpload('vehicle', e.target.files[0])}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ticket history */}
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Historial de Servicios</label>
+                      <div className="space-y-2">
+                        {sc.tickets.map(t => (
+                          <div key={t.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-accent-primary/20 transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-accent-primary">{t.id}</span>
+                                <span className="text-xs text-gray-400 truncate">{t.vehicle}</span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5 truncate">{t.description || t.serviceType}</p>
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary font-bold border border-accent-primary/20">
+                                {t.status}
+                              </span>
+                              {t.totalCost > 0 && (
+                                <p className="text-xs font-bold text-gray-400 mt-1">${t.totalCost?.toLocaleString()}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Modal Nuevo Ingreso */}
         {isModalOpen && (
@@ -846,6 +1170,93 @@ export default function ShopDashboard() {
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-400 ml-1">CORREO ELECTRÓNICO (EMAIL)</label>
+                  <input 
+                    type="email" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors"
+                    placeholder="Ej. cliente@example.com" 
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 ml-1 uppercase">Foto del Cliente</label>
+                    <div 
+                      onClick={() => !isClientPhotoCompressing && document.getElementById('new-client-photo-input').click()}
+                      className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden bg-black/30 hover:bg-black/50 ${newClientPhoto ? 'border-accent-primary border-solid' : 'border-white/20'}`}
+                    >
+                      {newClientPhoto ? (
+                        <img src={newClientPhoto} alt="Foto Cliente" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center p-2 flex flex-col items-center gap-1">
+                          <Camera size={20} className="text-gray-500" />
+                          <span className="text-[9px] font-black text-gray-500 uppercase">{isClientPhotoCompressing ? 'Procesando...' : 'Subir Foto'}</span>
+                        </div>
+                      )}
+                    </div>
+                    <input 
+                      id="new-client-photo-input"
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        setIsClientPhotoCompressing(true);
+                        try {
+                          const compressed = await compressImage(file, 400, 0.8);
+                          setNewClientPhoto(compressed);
+                        } catch (err) {
+                          console.error(err);
+                          alert('Error al comprimir imagen');
+                        } finally {
+                          setIsClientPhotoCompressing(false);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 ml-1 uppercase">Foto del Vehículo</label>
+                    <div 
+                      onClick={() => !isVehiclePhotoCompressing && document.getElementById('new-vehicle-photo-input').click()}
+                      className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden bg-black/30 hover:bg-black/50 ${newVehiclePhoto ? 'border-accent-primary border-solid' : 'border-white/20'}`}
+                    >
+                      {newVehiclePhoto ? (
+                        <img src={newVehiclePhoto} alt="Foto Vehículo" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center p-2 flex flex-col items-center gap-1">
+                          <Camera size={20} className="text-gray-500" />
+                          <span className="text-[9px] font-black text-gray-500 uppercase">{isVehiclePhotoCompressing ? 'Procesando...' : 'Subir Foto'}</span>
+                        </div>
+                      )}
+                    </div>
+                    <input 
+                      id="new-vehicle-photo-input"
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        setIsVehiclePhotoCompressing(true);
+                        try {
+                          const compressed = await compressImage(file, 600, 0.8);
+                          setNewVehiclePhoto(compressed);
+                        } catch (err) {
+                          console.error(err);
+                          alert('Error al comprimir imagen');
+                        } finally {
+                          setIsVehiclePhotoCompressing(false);
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">

@@ -132,6 +132,9 @@ const defaultTickets = [
     items: [],
     billingInfo: { rfc: '', zip: '', regime: '601', usage: 'G03' },
     phone: '526633040096',
+    email: 'juan.perez@example.com',
+    clientPhoto: '',
+    vehiclePhoto: '',
     budgetStatus: 'pending',
     damagedPanels: [],
     insuranceType: 'particular',
@@ -158,6 +161,9 @@ const defaultTickets = [
     ],
     billingInfo: { rfc: 'XAXX010101000', zip: '06600', regime: '612', usage: 'G03' },
     phone: '526633040096',
+    email: 'maria.gomez@example.com',
+    clientPhoto: '',
+    vehiclePhoto: '',
     budgetStatus: 'approved',
     damagedPanels: [{ panelId: 'rear-bumper', damageLevel: 'HIGH' }, { panelId: 'trunk', damageLevel: 'MEDIUM' }],
     insuranceType: 'aseguranza',
@@ -252,7 +258,10 @@ async function initializePostgres() {
         timeLogs TEXT,
         inventoryChecklist TEXT,
         createdAt TEXT,
-        closedAt TEXT
+        closedAt TEXT,
+        email TEXT,
+        clientPhoto TEXT,
+        vehiclePhoto TEXT
       );
       
       CREATE TABLE IF NOT EXISTS parts (
@@ -286,6 +295,13 @@ async function initializePostgres() {
         role TEXT
       );
     `);
+
+    // Run alterations to guarantee columns exist on pre-existing ticket tables
+    await pool.query(`
+      ALTER TABLE tickets ADD COLUMN IF NOT EXISTS email TEXT;
+      ALTER TABLE tickets ADD COLUMN IF NOT EXISTS clientPhoto TEXT;
+      ALTER TABLE tickets ADD COLUMN IF NOT EXISTS vehiclePhoto TEXT;
+    `);
     
     // Seed settings if empty
     const checkSettings = await pool.query('SELECT count(*) FROM settings');
@@ -304,14 +320,16 @@ async function initializePostgres() {
           `INSERT INTO tickets (
             id, client, vehicle, serviceType, status, events, photos, items, billingInfo, phone,
             budgetStatus, damagedPanels, insuranceType, insuranceCompany, claimNumber,
-            signatureIntake, signatureDelivery, timeLogs, inventoryChecklist, createdAt, closedAt
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+            signatureIntake, signatureDelivery, timeLogs, inventoryChecklist, createdAt, closedAt,
+            email, clientPhoto, vehiclePhoto
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
           [
             t.id, t.client, t.vehicle, t.serviceType, t.status, JSON.stringify(t.events),
             JSON.stringify(t.photos), JSON.stringify(t.items), JSON.stringify(t.billingInfo),
             t.phone, t.budgetStatus, JSON.stringify(t.damagedPanels), t.insuranceType,
             t.insuranceCompany, t.claimNumber, t.signatureIntake, t.signatureDelivery,
-            JSON.stringify(t.timeLogs), JSON.stringify(t.inventoryChecklist), t.createdAt, t.closedAt
+            JSON.stringify(t.timeLogs), JSON.stringify(t.inventoryChecklist), t.createdAt, t.closedAt,
+            t.email || '', t.clientPhoto || '', t.vehiclePhoto || ''
           ]
         );
       }
@@ -403,6 +421,9 @@ export async function getTickets() {
       const res = await pool.query('SELECT * FROM tickets');
       return res.rows.map(t => ({
         ...t,
+        email: t.email || '',
+        clientPhoto: t.clientphoto || '',
+        vehiclePhoto: t.vehiclephoto || '',
         events: t.events ? JSON.parse(t.events) : [],
         photos: t.photos ? JSON.parse(t.photos) : {},
         items: t.items ? JSON.parse(t.items) : [],
@@ -427,6 +448,9 @@ export async function getTicket(id) {
       const t = res.rows[0];
       return {
         ...t,
+        email: t.email || '',
+        clientPhoto: t.clientphoto || '',
+        vehiclePhoto: t.vehiclephoto || '',
         events: t.events ? JSON.parse(t.events) : [],
         photos: t.photos ? JSON.parse(t.photos) : {},
         items: t.items ? JSON.parse(t.items) : [],
@@ -451,14 +475,16 @@ export async function addTicket(t) {
         `INSERT INTO tickets (
           id, client, vehicle, serviceType, status, events, photos, items, billingInfo, phone,
           budgetStatus, damagedPanels, insuranceType, insuranceCompany, claimNumber,
-          signatureIntake, signatureDelivery, timeLogs, inventoryChecklist, createdAt, closedAt
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+          signatureIntake, signatureDelivery, timeLogs, inventoryChecklist, createdAt, closedAt,
+          email, clientPhoto, vehiclePhoto
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
         [
           t.id, t.client, t.vehicle, t.serviceType, t.status, JSON.stringify(t.events),
           JSON.stringify(t.photos), JSON.stringify(t.items), JSON.stringify(t.billingInfo),
           t.phone, t.budgetStatus, JSON.stringify(t.damagedPanels), t.insuranceType,
           t.insuranceCompany, t.claimNumber, t.signatureIntake, t.signatureDelivery,
-          JSON.stringify(t.timeLogs), JSON.stringify(t.inventoryChecklist), t.createdAt, t.closedAt
+          JSON.stringify(t.timeLogs), JSON.stringify(t.inventoryChecklist), t.createdAt, t.closedAt,
+          t.email || '', t.clientPhoto || '', t.vehiclePhoto || ''
         ]
       );
       return t;
@@ -486,17 +512,48 @@ export async function updateTicket(id, fields) {
           client = $1, vehicle = $2, serviceType = $3, status = $4, events = $5, photos = $6,
           items = $7, billingInfo = $8, phone = $9, budgetStatus = $10, damagedPanels = $11,
           insuranceType = $12, insuranceCompany = $13, claimNumber = $14, signatureIntake = $15,
-          signatureDelivery = $16, timeLogs = $17, inventoryChecklist = $18, createdAt = $19, closedAt = $20
-         WHERE id = $21`,
+          signatureDelivery = $16, timeLogs = $17, inventoryChecklist = $18, createdAt = $19, closedAt = $20,
+          email = $21, clientPhoto = $22, vehiclePhoto = $23
+         WHERE id = $24`,
         [
           merged.client, merged.vehicle, merged.serviceType, merged.status, JSON.stringify(merged.events),
           JSON.stringify(merged.photos), JSON.stringify(merged.items), JSON.stringify(merged.billingInfo),
           merged.phone, merged.budgetStatus, JSON.stringify(merged.damagedPanels), merged.insuranceType,
           merged.insuranceCompany, merged.claimNumber, merged.signatureIntake, merged.signatureDelivery,
           JSON.stringify(merged.timeLogs), JSON.stringify(merged.inventoryChecklist), merged.createdAt, merged.closedAt,
+          merged.email || '', merged.clientPhoto || '', merged.vehiclePhoto || '',
           id
         ]
       );
+
+      // CRM Sync: Update email, phone, clientPhoto, and vehiclePhoto across all tickets of this client
+      if (fields.email !== undefined || fields.clientPhoto !== undefined || fields.vehiclePhoto !== undefined || fields.phone !== undefined) {
+        const updates = [];
+        const vals = [];
+        let paramIndex = 1;
+        if (fields.email !== undefined) {
+          updates.push(`email = $${paramIndex++}`);
+          vals.push(fields.email);
+        }
+        if (fields.clientPhoto !== undefined) {
+          updates.push(`clientPhoto = $${paramIndex++}`);
+          vals.push(fields.clientPhoto);
+        }
+        if (fields.vehiclePhoto !== undefined) {
+          updates.push(`vehiclePhoto = $${paramIndex++}`);
+          vals.push(fields.vehiclePhoto);
+        }
+        if (fields.phone !== undefined) {
+          updates.push(`phone = $${paramIndex++}`);
+          vals.push(fields.phone);
+        }
+        vals.push(current.client);
+        await pool.query(
+          `UPDATE tickets SET ${updates.join(', ')} WHERE client = $${paramIndex}`,
+          vals
+        );
+      }
+
       return merged;
     } catch (err) {
       console.error('[DB] updateTicket error:', err.message);
@@ -506,9 +563,24 @@ export async function updateTicket(id, fields) {
   const data = readLocalJson();
   const index = data.tickets.findIndex(t => t.id === id);
   if (index > -1) {
-    data.tickets[index] = { ...data.tickets[index], ...fields };
+    const current = data.tickets[index];
+    const merged = { ...current, ...fields };
+    data.tickets[index] = merged;
+    
+    // CRM Sync for local json fallback:
+    if (fields.email !== undefined || fields.clientPhoto !== undefined || fields.vehiclePhoto !== undefined || fields.phone !== undefined) {
+      data.tickets.forEach(t => {
+        if (t.client === current.client) {
+          if (fields.email !== undefined) t.email = fields.email;
+          if (fields.clientPhoto !== undefined) t.clientPhoto = fields.clientPhoto;
+          if (fields.vehiclePhoto !== undefined) t.vehiclePhoto = fields.vehiclePhoto;
+          if (fields.phone !== undefined) t.phone = fields.phone;
+        }
+      });
+    }
+
     writeLocalJson(data);
-    return data.tickets[index];
+    return merged;
   }
   return null;
 }
