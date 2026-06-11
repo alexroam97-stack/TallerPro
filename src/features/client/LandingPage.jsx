@@ -162,7 +162,7 @@ export default function LandingPage() {
         <Logo size="md" />
         <div className="flex items-center gap-4">
           {user ? (
-            <button className="btn-premium flex items-center gap-2" onClick={() => navigate('/dashboard')}>
+            <button className="btn-premium flex items-center gap-2" onClick={() => navigate(user.role === 'mechanic' ? '/tech' : '/dashboard')}>
               Panel de Control
               <ArrowRight size={18} />
             </button>
@@ -176,7 +176,7 @@ export default function LandingPage() {
           )}
         </div>
       </nav>
-
+ 
       {/* 1. Hero Section */}
       <main className="container mx-auto px-6 pt-16 pb-20 relative z-10 text-center overflow-hidden rounded-[2.5rem]">
         {/* Dark radial glow overlay on top of video to integrate with theme and protect text contrast */}
@@ -185,7 +185,7 @@ export default function LandingPage() {
         <CanvasMechanicBackground />
         
         <div className="max-w-5xl mx-auto space-y-8 relative z-10">
-
+ 
           <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-tight animate-fade-in-up [animation-delay:200ms]">
             La plataforma modular para gestionar tu taller <br className="hidden md:block"/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-primary via-white to-accent-secondary">
@@ -196,11 +196,11 @@ export default function LandingPage() {
           <p className="text-lg md:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed animate-fade-in-up [animation-delay:400ms]">
             Digitaliza tus órdenes, protege tu negocio con registros fotográficos de entrada y aumenta la confianza de tus clientes con evidencia visual en tiempo real.
           </p>
-
+ 
           <div className="flex flex-col md:flex-row justify-center gap-6 pt-8 animate-fade-in-up [animation-delay:600ms]">
             <button 
               className="btn-premium text-lg group py-4 px-10 shadow-[0_0_40px_rgba(0,242,255,0.4)] hover:shadow-[0_0_60px_rgba(0,242,255,0.6)]" 
-              onClick={() => user ? navigate('/dashboard') : setShowLogin(true)}
+              onClick={() => user ? navigate(user.role === 'mechanic' ? '/tech' : '/dashboard') : setShowLogin(true)}
             >
               Comienza tu Prueba Gratis
               <ArrowRight className="inline-block ml-2 group-hover:translate-x-1 transition-transform" />

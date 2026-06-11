@@ -32,8 +32,9 @@ export default function ScanRedirect() {
   useEffect(() => {
     if (!loading && !checking && ticket) {
       if (user) {
-        // If logged in as workshop staff, redirect directly to dashboard and auto-trigger detail view
-        navigate(`/dashboard?scan=${ticketId}`, { replace: true });
+        // If logged in as workshop staff, redirect directly to dashboard (or tech panel for mechanics)
+        const target = user.role === 'mechanic' ? '/tech' : `/dashboard?scan=${ticketId}`;
+        navigate(target, { replace: true });
       }
     }
   }, [loading, checking, user, ticket, ticketId, navigate]);
