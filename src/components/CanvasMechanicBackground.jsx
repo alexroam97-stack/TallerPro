@@ -39,11 +39,11 @@ export default function CanvasMechanicBackground() {
     // Apply interactive torque to gears based on mouse velocity
     const applyGearInteractions = () => {
       // Gear centers mapped to screen coordinates
-      const gear1X = width / 2 - 130;
+      const gear1X = width / 2 - 160;
       const gear1Y = height / 2 + 20;
       
-      const gear2X = width / 2 + 110;
-      const gear2Y = height / 2 - 30;
+      const gear2X = width / 2 + 140;
+      const gear2Y = height / 2 - 40;
       
       // Compute distance from cursor to Gear 1
       const dx1 = mouseX - gear1X;
@@ -58,20 +58,20 @@ export default function CanvasMechanicBackground() {
       let torque = 0;
       
       // Gear 1 (large, left) interaction
-      if (dist1 < 180 && dist1 > 10) {
+      if (dist1 < 240 && dist1 > 10) {
         const tangentX = -dy1 / dist1;
         const tangentY = dx1 / dist1;
         const dot = vx * tangentX + vy * tangentY;
-        const influence = (1 - dist1 / 180);
+        const influence = (1 - dist1 / 240);
         torque += dot * influence * 0.0025;
       }
       
       // Gear 2 (small, right) interaction
-      if (dist2 < 140 && dist2 > 10) {
+      if (dist2 < 180 && dist2 > 10) {
         const tangentX = -dy2 / dist2;
         const tangentY = dx2 / dist2;
         const dot = vx * tangentX + vy * tangentY;
-        const influence = (1 - dist2 / 140);
+        const influence = (1 - dist2 / 180);
         // Gear 2 has opposite spin direction, scaling torque by gear ratio (teeth2 / teeth1)
         torque -= dot * influence * 0.0025 * (teeth2 / teeth1);
       }
@@ -303,9 +303,9 @@ export default function CanvasMechanicBackground() {
       // 2. Draw gears - PASS 1 (Ambient faint outlines)
       ctx.shadowBlur = 0;
       ctx.strokeStyle = 'rgba(0, 242, 255, 0.12)';
-      drawGear(-130, 20, 1.25, teeth1, innerR1, outerR1, rot1, angleX);
+      drawGear(-160, 20, 1.8, teeth1, innerR1, outerR1, rot1, angleX);
       ctx.strokeStyle = 'rgba(255, 85, 0, 0.10)';
-      drawGear(110, -30, 0.85, teeth2, innerR2, outerR2, rot2, angleX);
+      drawGear(140, -40, 1.2, teeth2, innerR2, outerR2, rot2, angleX);
 
       // 3. Draw gears - PASS 2 (Neon glow highlight centered at the mouse)
       const gear1Grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 200);
@@ -316,7 +316,7 @@ export default function CanvasMechanicBackground() {
       ctx.shadowBlur = 4;
       ctx.strokeStyle = gear1Grad;
       ctx.shadowColor = 'rgba(0, 242, 255, 0.45)';
-      drawGear(-130, 20, 1.25, teeth1, innerR1, outerR1, rot1, angleX);
+      drawGear(-160, 20, 1.8, teeth1, innerR1, outerR1, rot1, angleX);
 
       const gear2Grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 200);
       gear2Grad.addColorStop(0, 'rgba(255, 85, 0, 0.55)');
@@ -325,7 +325,7 @@ export default function CanvasMechanicBackground() {
       
       ctx.strokeStyle = gear2Grad;
       ctx.shadowColor = 'rgba(255, 85, 0, 0.4)';
-      drawGear(110, -30, 0.85, teeth2, innerR2, outerR2, rot2, angleX);
+      drawGear(140, -40, 1.2, teeth2, innerR2, outerR2, rot2, angleX);
     };
 
     const render = () => {
