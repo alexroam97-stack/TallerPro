@@ -210,8 +210,8 @@ export default function CanvasMechanicBackground() {
       
       // 1. Draw blueprint grid lines illuminated by the mouse
       const gridGrad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 280);
-      gridGrad.addColorStop(0, 'rgba(0, 242, 255, 0.15)');
-      gridGrad.addColorStop(0.5, 'rgba(0, 242, 255, 0.04)');
+      gridGrad.addColorStop(0, 'rgba(0, 242, 255, 0.28)');
+      gridGrad.addColorStop(0.5, 'rgba(0, 242, 255, 0.08)');
       gridGrad.addColorStop(1, 'rgba(0, 242, 255, 0)');
       
       ctx.strokeStyle = gridGrad;
@@ -244,7 +244,7 @@ export default function CanvasMechanicBackground() {
             const dy = y - mouseY;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 200) {
-              const alpha = Math.max(0, 1 - dist / 200) ** 1.5 * 0.35;
+              const alpha = Math.max(0, 1 - dist / 200) ** 1.5 * 0.6;
               ctx.strokeStyle = `rgba(0, 242, 255, ${alpha})`;
               ctx.lineWidth = 1;
               ctx.beginPath();
@@ -266,17 +266,17 @@ export default function CanvasMechanicBackground() {
         const snappedX = Math.round(mouseX / gridSpacing) * gridSpacing;
         const snappedY = Math.round(mouseY / gridSpacing) * gridSpacing;
         const distToSnap = Math.sqrt((mouseX - snappedX) ** 2 + (mouseY - snappedY) ** 2);
-        const snapAlpha = Math.max(0, 1 - distToSnap / 80) * 0.45;
+        const snapAlpha = Math.max(0, 1 - distToSnap / 80) * 0.75;
         
         if (snapAlpha > 0) {
           ctx.save();
           ctx.strokeStyle = `rgba(0, 242, 255, ${snapAlpha})`;
-          ctx.fillStyle = `rgba(0, 242, 255, ${snapAlpha * 0.15})`;
+          ctx.fillStyle = `rgba(0, 242, 255, ${snapAlpha * 0.2})`;
           ctx.lineWidth = 1;
           
           // Snapping circle with subtle shadow glow
-          ctx.shadowBlur = 4;
-          ctx.shadowColor = 'rgba(0, 242, 255, 0.4)';
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = 'rgba(0, 242, 255, 0.6)';
           ctx.beginPath();
           ctx.arc(snappedX, snappedY, 6, 0, Math.PI * 2);
           ctx.fill();
@@ -302,29 +302,29 @@ export default function CanvasMechanicBackground() {
 
       // 2. Draw gears - PASS 1 (Ambient faint outlines)
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(0, 242, 255, 0.02)';
+      ctx.strokeStyle = 'rgba(0, 242, 255, 0.12)';
       drawGear(-130, 20, 1.25, teeth1, innerR1, outerR1, rot1, angleX);
-      ctx.strokeStyle = 'rgba(255, 85, 0, 0.015)';
+      ctx.strokeStyle = 'rgba(255, 85, 0, 0.10)';
       drawGear(110, -30, 0.85, teeth2, innerR2, outerR2, rot2, angleX);
 
       // 3. Draw gears - PASS 2 (Neon glow highlight centered at the mouse)
       const gear1Grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 200);
-      gear1Grad.addColorStop(0, 'rgba(0, 242, 255, 0.38)');
-      gear1Grad.addColorStop(0.5, 'rgba(0, 242, 255, 0.12)');
-      gear1Grad.addColorStop(1, 'rgba(0, 242, 255, 0.02)');
+      gear1Grad.addColorStop(0, 'rgba(0, 242, 255, 0.65)');
+      gear1Grad.addColorStop(0.5, 'rgba(0, 242, 255, 0.22)');
+      gear1Grad.addColorStop(1, 'rgba(0, 242, 255, 0.03)');
       
-      ctx.shadowBlur = 3;
+      ctx.shadowBlur = 4;
       ctx.strokeStyle = gear1Grad;
-      ctx.shadowColor = 'rgba(0, 242, 255, 0.35)';
+      ctx.shadowColor = 'rgba(0, 242, 255, 0.45)';
       drawGear(-130, 20, 1.25, teeth1, innerR1, outerR1, rot1, angleX);
 
       const gear2Grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 200);
-      gear2Grad.addColorStop(0, 'rgba(255, 85, 0, 0.3)');
-      gear2Grad.addColorStop(0.5, 'rgba(255, 85, 0, 0.1)');
-      gear2Grad.addColorStop(1, 'rgba(255, 85, 0, 0.015)');
+      gear2Grad.addColorStop(0, 'rgba(255, 85, 0, 0.55)');
+      gear2Grad.addColorStop(0.5, 'rgba(255, 85, 0, 0.18)');
+      gear2Grad.addColorStop(1, 'rgba(255, 85, 0, 0.02)');
       
       ctx.strokeStyle = gear2Grad;
-      ctx.shadowColor = 'rgba(255, 85, 0, 0.3)';
+      ctx.shadowColor = 'rgba(255, 85, 0, 0.4)';
       drawGear(110, -30, 0.85, teeth2, innerR2, outerR2, rot2, angleX);
     };
 

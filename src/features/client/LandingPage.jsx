@@ -179,10 +179,10 @@ export default function LandingPage() {
 
       {/* 1. Hero Section */}
       <main className="container mx-auto px-6 pt-16 pb-20 relative z-10 text-center overflow-hidden rounded-[2.5rem]">
-        {/* Interactive mechanics canvas background */}
-        <CanvasMechanicBackground />
         {/* Dark radial glow overlay on top of video to integrate with theme and protect text contrast */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0c10]/20 via-[#0a0c10]/50 to-[#0a0c10] z-0 pointer-events-none" />
+        {/* Interactive mechanics canvas background */}
+        <CanvasMechanicBackground />
         
         <div className="max-w-5xl mx-auto space-y-8 relative z-10">
           <div className="inline-block px-4 py-1.5 rounded-full liquid-glass text-accent-primary font-medium text-sm mb-2 animate-fade-in-up">
