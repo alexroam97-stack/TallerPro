@@ -38,12 +38,18 @@ export default function CanvasMechanicBackground() {
 
     // Apply interactive torque to gears based on mouse velocity
     const applyGearInteractions = () => {
-      // Gear centers mapped to screen coordinates
-      const gear1X = width / 2 - 160;
-      const gear1Y = height / 2 + 20;
+      // Calculate normalized mouse offsets from center for parallax zones
+      const relX = (mouseX - width / 2) / (width / 2 || 1);
+      const relY = (mouseY - height / 2) / (height / 2 || 1);
+      const gearParallaxX = relX * 15;
+      const gearParallaxY = relY * 15;
+
+      // Gear centers mapped to screen coordinates with mouse parallax offset
+      const gear1X = width / 2 - 160 + gearParallaxX;
+      const gear1Y = height / 2 + 20 + gearParallaxY;
       
-      const gear2X = width / 2 + 140;
-      const gear2Y = height / 2 - 40;
+      const gear2X = width / 2 + 140 + gearParallaxX;
+      const gear2Y = height / 2 - 40 + gearParallaxY;
       
       // Compute distance from cursor to Gear 1
       const dx1 = mouseX - gear1X;
@@ -130,8 +136,15 @@ export default function CanvasMechanicBackground() {
       }
     };
 
+    const handleScroll = () => {
+      if (canvas) {
+        canvas.style.transform = `translateY(${window.scrollY * 0.25}px)`;
+      }
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
     const drawGear = (centerX, centerY, scaleVal, teeth, innerR, outerR, angleY, angleX) => {
       const vertices = [];
@@ -207,9 +220,28 @@ export default function CanvasMechanicBackground() {
     const drawFrame = () => {
       ctx.clearRect(0, 0, width, height);
       ctx.lineWidth = 1;
+
+      // Calculate relative mouse offset from center (normalized -1 to 1) for parallax
+      const relX = (mouseX - width / 2) / (width / 2 || 1);
+      const relY = (mouseY - height / 2) / (height / 2 || 1);
       
-      // 1. Draw blueprint grid lines illuminated by the mouse
-      const gridGrad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 280);
+      // Parallax offsets for different layers
+      const gearParallaxX = relX * 15;
+      const gearParallaxY = relY * 15;
+      
+      const gridParallaxX = relX * 6;
+      const gridParallaxY = relY * 6;
+
+      // ==================== LAYER 1: Blueprint Grid ====================
+      ctx.save();
+      ctx.translate(gridParallaxX, gridParallaxY);
+
+      // Local mouse coordinates relative to the translated grid layer
+      const localMouseX = mouseX - gridParallaxX;
+      const localMouseY = mouseY - gridParallaxY;
+      
+      // Draw blueprint grid lines illuminated by the mouse
+      const gridGrad = ctx.createRadialGradient(localMouseX, localMouseY, 0, localMouseX, localMouseY, 280);
       gridGrad.addColorStop(0, 'rgba(0, 242, 255, 0.28)');
       gridGrad.addColorStop(0.5, 'rgba(0, 242, 255, 0.08)');
       gridGrad.addColorStop(1, 'rgba(0, 242, 255, 0)');
@@ -230,18 +262,17 @@ export default function CanvasMechanicBackground() {
         ctx.stroke();
       }
 
-      // 1b. Draw technical blueprint crosshairs ('+') at intersections close to the mouse
-      if (mouseX > -500 && mouseY > -500) {
-        ctx.save();
-        const startX = Math.max(0, Math.floor((mouseX - 200) / gridSpacing) * gridSpacing);
-        const endX = Math.min(width, Math.ceil((mouseX + 200) / gridSpacing) * gridSpacing);
-        const startY = Math.max(0, Math.floor((mouseY - 200) / gridSpacing) * gridSpacing);
-        const endY = Math.min(height, Math.ceil((mouseY + 200) / gridSpacing) * gridSpacing);
+      // Draw technical blueprint crosshairs ('+') at intersections close to the local mouse position
+      if (localMouseX > -500 && localMouseY > -500) {
+        const startX = Math.max(0, Math.floor((localMouseX - 200) / gridSpacing) * gridSpacing);
+        const endX = Math.min(width, Math.ceil((localMouseX + 200) / gridSpacing) * gridSpacing);
+        const startY = Math.max(0, Math.floor((localMouseY - 200) / gridSpacing) * gridSpacing);
+        const endY = Math.min(height, Math.ceil((localMouseY + 200) / gridSpacing) * gridSpacing);
         
         for (let x = startX; x <= endX; x += gridSpacing) {
           for (let y = startY; y <= endY; y += gridSpacing) {
-            const dx = x - mouseX;
-            const dy = y - mouseY;
+            const dx = x - localMouseX;
+            const dy = y - localMouseY;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 200) {
               const alpha = Math.max(0, 1 - dist / 200) ** 1.5 * 0.6;
@@ -258,14 +289,13 @@ export default function CanvasMechanicBackground() {
             }
           }
         }
-        ctx.restore();
       }
 
-      // 1c. Draw snapping CAD reticle showing snapped coordinate telemetry
-      if (mouseX > 0 && mouseY > 0 && mouseX < width && mouseY < height) {
-        const snappedX = Math.round(mouseX / gridSpacing) * gridSpacing;
-        const snappedY = Math.round(mouseY / gridSpacing) * gridSpacing;
-        const distToSnap = Math.sqrt((mouseX - snappedX) ** 2 + (mouseY - snappedY) ** 2);
+      // Draw snapping CAD reticle showing snapped coordinate telemetry
+      if (localMouseX > 0 && localMouseY > 0 && localMouseX < width && localMouseY < height) {
+        const snappedX = Math.round(localMouseX / gridSpacing) * gridSpacing;
+        const snappedY = Math.round(localMouseY / gridSpacing) * gridSpacing;
+        const distToSnap = Math.sqrt((localMouseX - snappedX) ** 2 + (localMouseY - snappedY) ** 2);
         const snapAlpha = Math.max(0, 1 - distToSnap / 80) * 0.75;
         
         if (snapAlpha > 0) {
@@ -299,16 +329,25 @@ export default function CanvasMechanicBackground() {
           ctx.restore();
         }
       }
+      ctx.restore();
 
-      // 2. Draw gears - PASS 1 (Ambient faint outlines)
+      // ==================== LAYER 2: 3D Gears ====================
+      ctx.save();
+      ctx.translate(gearParallaxX, gearParallaxY);
+
+      // Local mouse coordinates relative to the translated gear layer
+      const localMouseXG = mouseX - gearParallaxX;
+      const localMouseYG = mouseY - gearParallaxY;
+
+      // Draw gears - PASS 1 (Ambient outlines)
       ctx.shadowBlur = 0;
       ctx.strokeStyle = 'rgba(0, 242, 255, 0.12)';
       drawGear(-160, 20, 1.8, teeth1, innerR1, outerR1, rot1, angleX);
       ctx.strokeStyle = 'rgba(255, 85, 0, 0.10)';
       drawGear(140, -40, 1.2, teeth2, innerR2, outerR2, rot2, angleX);
 
-      // 3. Draw gears - PASS 2 (Neon glow highlight centered at the mouse)
-      const gear1Grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 200);
+      // Draw gears - PASS 2 (Neon glow highlight centered at local mouse)
+      const gear1Grad = ctx.createRadialGradient(localMouseXG, localMouseYG, 0, localMouseXG, localMouseYG, 200);
       gear1Grad.addColorStop(0, 'rgba(0, 242, 255, 0.65)');
       gear1Grad.addColorStop(0.5, 'rgba(0, 242, 255, 0.22)');
       gear1Grad.addColorStop(1, 'rgba(0, 242, 255, 0.03)');
@@ -318,7 +357,7 @@ export default function CanvasMechanicBackground() {
       ctx.shadowColor = 'rgba(0, 242, 255, 0.45)';
       drawGear(-160, 20, 1.8, teeth1, innerR1, outerR1, rot1, angleX);
 
-      const gear2Grad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 200);
+      const gear2Grad = ctx.createRadialGradient(localMouseXG, localMouseYG, 0, localMouseXG, localMouseYG, 200);
       gear2Grad.addColorStop(0, 'rgba(255, 85, 0, 0.55)');
       gear2Grad.addColorStop(0.5, 'rgba(255, 85, 0, 0.18)');
       gear2Grad.addColorStop(1, 'rgba(255, 85, 0, 0.02)');
@@ -326,6 +365,8 @@ export default function CanvasMechanicBackground() {
       ctx.strokeStyle = gear2Grad;
       ctx.shadowColor = 'rgba(255, 85, 0, 0.4)';
       drawGear(140, -40, 1.2, teeth2, innerR2, outerR2, rot2, angleX);
+      
+      ctx.restore();
     };
 
     const render = () => {
@@ -368,6 +409,7 @@ export default function CanvasMechanicBackground() {
       active = false;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
       resizeObserver.disconnect();
     };
   }, []);
