@@ -7,8 +7,6 @@ import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import { compressImage } from '../../skills/imageUtils';
 import { saveSettings } from '../../services/mockDb';
-import CanvasMechanicBackground from '../../components/CanvasMechanicBackground';
-
 const pricingPlans = [
   { 
     name: 'Básico', 
@@ -179,8 +177,17 @@ export default function LandingPage() {
       </nav>
 
       {/* 1. Hero Section */}
-      <main className="container mx-auto px-6 pt-16 pb-20 relative z-10 text-center">
-        <CanvasMechanicBackground />
+      <main className="container mx-auto px-6 pt-16 pb-20 relative z-10 text-center overflow-hidden rounded-[2.5rem]">
+        {/* Custom created H.264 MP4 background video */}
+        <video
+          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-30"
+          src="/assets/hero-bg.mp4"
+          autoPlay
+          muted
+          playsInline
+        />
+        {/* Dark radial glow overlay on top of video to integrate with theme and protect text contrast */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0c10]/20 via-[#0a0c10]/50 to-[#0a0c10] z-0 pointer-events-none" />
         
         <div className="max-w-5xl mx-auto space-y-8 relative z-10">
           <div className="inline-block px-4 py-1.5 rounded-full liquid-glass text-accent-primary font-medium text-sm mb-2 animate-fade-in-up">
