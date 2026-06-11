@@ -67,7 +67,8 @@ export default function TechnicianApp() {
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
     setPhotos({});
-    setInventory(INVENTORY_ITEMS.reduce((acc, item) => ({...acc, [item.id]: false}), {}));
+    const initialInventory = ticket.inventoryChecklist || INVENTORY_ITEMS.reduce((acc, item) => ({...acc, [item.id]: false}), {});
+    setInventory(initialInventory);
     setElapsedSeconds(0);
     setIsTimerActive(true);
     setStep(2);
@@ -75,15 +76,83 @@ export default function TechnicianApp() {
 
   const handleScanQR = () => {
     setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-      if (mockTickets.length > 0) {
-        handleSelectTicket(mockTickets[mockTickets.length - 1]);
-      } else {
-        alert('No hay vehículos registrados para escanear.');
-      }
-    }, 1500);
   };
+
+  useEffect(() => {
+    if (isScanning) {
+      if (!window.Html5QrcodeScanner) {
+        const script = document.createElement('script');
+        script.src = "https://unpkg.com/html5-qrcode";
+        script.async = true;
+        script.onload = () => {
+          initializeScanner();
+        };
+        document.body.appendChild(script);
+      } else {
+        setTimeout(initializeScanner, 100);
+      }
+    }
+
+    let scannerInstance = null;
+
+    function initializeScanner() {
+      if (!document.getElementById('qr-reader-tech')) return;
+      try {
+        const scanner = new window.Html5QrcodeScanner(
+          "qr-reader-tech", 
+          { 
+            fps: 10, 
+            qrbox: { width: 200, height: 200 },
+            aspectRatio: 1.0
+          },
+          false
+        );
+        
+        scanner.render((decodedText) => {
+          const regex = /\/scan\/(TKT-[A-Z0-9]+)/i;
+          const match = decodedText.match(regex);
+          if (match && match[1]) {
+            const ticketId = match[1];
+            const found = mockTickets.find(t => t.id === ticketId);
+            if (found) {
+              handleSelectTicket(found);
+              setIsScanning(false);
+              scanner.clear();
+            } else {
+              alert(`Pase QR escaneado válido (${ticketId}) pero no se encontró la orden.`);
+            }
+          } else {
+            if (decodedText.startsWith('TKT-')) {
+              const found = mockTickets.find(t => t.id === decodedText);
+              if (found) {
+                handleSelectTicket(found);
+                setIsScanning(false);
+                scanner.clear();
+              }
+            } else {
+              alert('Formato de código QR inválido. Escanea un Pase de Cliente TallerPro.');
+            }
+          }
+        }, (error) => {
+          // Ignore scanning logs
+        });
+        
+        scannerInstance = scanner;
+      } catch (err) {
+        console.error("Scanner Error:", err);
+      }
+    }
+
+    return () => {
+      if (scannerInstance) {
+        try {
+          scannerInstance.clear();
+        } catch (e) {
+          // Already cleared
+        }
+      }
+    };
+  }, [isScanning, mockTickets]);
 
   const handleSlotClick = (slotId) => {
     setActiveSlot(slotId);
@@ -117,10 +186,10 @@ export default function TechnicianApp() {
     if (selectedTicket) {
       const currentEvents = getTicketEvents(selectedTicket.id);
       const nextEventId = currentEvents.length + 1;
-      const firstAvailablePhoto = Object.values(photos)[0] || null;
       const nextStepName = getNextStepName();
       
-      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 5), firstAvailablePhoto);
+      // Persist the photos map and inventory checklist in the event stage
+      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 6), null, photos, inventory);
       
       // Save elapsed seconds to timeLogs
       updateTimeLogs(selectedTicket.id, nextStepName, elapsedSeconds);
@@ -151,11 +220,11 @@ export default function TechnicianApp() {
   const getNextStepName = () => {
     if (!selectedTicket) return '';
     const currentEvents = getTicketEvents(selectedTicket.id);
-    const nextEventId = Math.min(currentEvents.length + 1, 5);
+    const nextEventId = Math.min(currentEvents.length + 1, 6);
     
     const stages = selectedTicket.serviceType === 'Hojalatería y Pintura' 
-      ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
-      : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+      ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo', 'Entregado']
+      : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo', 'Entregado'];
       
     return stages[nextEventId - 1];
   };
@@ -191,27 +260,29 @@ export default function TechnicianApp() {
             
             <h2 className="text-4xl font-black mb-8 tracking-tighter">ORDEN DE TRABAJO</h2>
             
-            <button 
-              onClick={handleScanQR} 
-              className="relative overflow-hidden w-full aspect-square liquid-glass rounded-[3rem] mb-8 flex flex-col items-center justify-center gap-4 group active:scale-95 transition-transform shadow-ui"
-            >
-              <div className="p-8 rounded-full bg-accent-primary/20 group-hover:bg-accent-primary/30 transition-colors">
-                <QrCode size={80} className="text-accent-primary" />
+            {isScanning ? (
+              <div className="relative w-full aspect-square liquid-glass rounded-[3rem] mb-8 overflow-hidden flex flex-col items-center justify-center p-4">
+                <div id="qr-reader-tech" className="w-full h-full rounded-2xl overflow-hidden" />
+                <button 
+                  onClick={() => setIsScanning(false)}
+                  className="absolute bottom-4 bg-red-500/20 border border-red-500 text-red-400 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-red-500/30 active:scale-95 transition-all z-10"
+                >
+                  Cancelar
+                </button>
               </div>
-              <span className="text-2xl font-black tracking-widest uppercase">
-                {isScanning ? 'ESCANEANDO...' : 'ESCANEAR QR'}
-              </span>
-              {isScanning && (
-                <div className="absolute inset-x-0 h-1 bg-accent-primary/50 shadow-[0_0_15px_rgba(0,242,255,0.8)] animate-[scan_1.5s_ease-in-out_infinite]" />
-              )}
-            </button>
-
-            <style>{`
-              @keyframes scan {
-                0% { top: 0%; }
-                100% { top: 100%; }
-              }
-            `}</style>
+            ) : (
+              <button 
+                onClick={handleScanQR} 
+                className="relative overflow-hidden w-full aspect-square liquid-glass rounded-[3rem] mb-8 flex flex-col items-center justify-center gap-4 group active:scale-95 transition-transform shadow-ui"
+              >
+                <div className="p-8 rounded-full bg-accent-primary/20 group-hover:bg-accent-primary/30 transition-colors">
+                  <QrCode size={80} className="text-accent-primary" />
+                </div>
+                <span className="text-2xl font-black tracking-widest uppercase">
+                  ESCANEAR QR
+                </span>
+              </button>
+            )}
 
             <div className="text-center text-gray-500 font-bold tracking-widest mb-4">O SELECCIONA DE LA LISTA</div>
             

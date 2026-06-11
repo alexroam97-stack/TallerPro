@@ -105,9 +105,23 @@ export default function LandingPage() {
       };
     }
     
+    if (!userToLogin && email === 'tech@tallerpro.com' && password === 'techpro2026') {
+      userToLogin = {
+        id: 'demo_tech',
+        name: 'Técnico Demo',
+        email: 'tech@tallerpro.com',
+        picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=7000ff&color=fff',
+        role: 'mechanic'
+      };
+    }
+    
     if (userToLogin) {
       loginWithCredentials(userToLogin);
-      navigate('/dashboard');
+      if (userToLogin.role === 'mechanic') {
+        navigate('/tech');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       alert('Correo o contraseña incorrectos. Si no tienes una cuenta, regístrate en la pestaña "Registrar Taller".');
     }
@@ -437,9 +451,10 @@ export default function LandingPage() {
                   />
                 </div>
 
-                <div className="text-[10px] text-gray-500 font-medium bg-white/5 p-2.5 rounded-lg border border-white/5 text-left leading-relaxed">
-                  <span className="font-bold text-accent-primary block mb-0.5">💡 Demo de prueba rápida:</span>
-                  Usa <span className="font-mono text-gray-300 font-bold">admin@tallerpro.com</span> y <span className="font-mono text-gray-300 font-bold">tallerpro2026</span> o regístrate en la pestaña superior.
+                <div className="text-[10px] text-gray-400 font-medium bg-white/5 p-3 rounded-xl border border-white/5 text-left space-y-1">
+                  <span className="font-bold text-accent-primary block">💡 Acceso de Pruebas:</span>
+                  <div>• <strong>Administrador:</strong> <span className="font-mono text-gray-200">admin@tallerpro.com</span> / <span className="font-mono text-gray-200">tallerpro2026</span></div>
+                  <div>• <strong>Técnico:</strong> <span className="font-mono text-gray-200">tech@tallerpro.com</span> / <span className="font-mono text-gray-200">techpro2026</span></div>
                 </div>
 
                 <button type="submit" className="btn-premium w-full py-3 text-xs font-black uppercase tracking-wider mt-4">

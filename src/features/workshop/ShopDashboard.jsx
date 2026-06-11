@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical } from 'lucide-react';
-import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket } from '../../services/mockDb';
+import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
@@ -301,7 +301,7 @@ export default function ShopDashboard() {
   const handleAdvanceStage = (ticket) => {
     const currentEvents = ticket.events || [1];
     const nextEventId = currentEvents.length + 1;
-    if (nextEventId <= 5) {
+    if (nextEventId <= 6) {
       addEventToTicket(ticket.id, nextEventId);
       
       const updatedTickets = getTickets();
@@ -315,9 +315,12 @@ export default function ShopDashboard() {
       // Auto-notify client via WhatsApp
       if (updatedTicket && updatedTicket.phone) {
         const stages = updatedTicket.serviceType === 'Hojalatería y Pintura'
-          ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
-          : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+          ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo', 'Entregado']
+          : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo', 'Entregado'];
         const nextStepName = stages[nextEventId - 1] || updatedTicket.status;
+        
+        // Log default 300 seconds (5 minutes) for stage analytics
+        updateTimeLogs(ticket.id, nextStepName, 300);
         
         const link = generateWhatsAppLink(
           updatedTicket.phone,
@@ -1273,8 +1276,8 @@ export default function ShopDashboard() {
 
               {(() => {
                 const stagesList = selectedDetailsTicket.serviceType === 'Hojalatería y Pintura'
-                  ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
-                  : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+                  ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo', 'Entregado']
+                  : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo', 'Entregado'];
                 const currentEventsList = selectedDetailsTicket.events || [1];
                 const activeStageNum = currentEventsList.length;
                 
@@ -1291,7 +1294,7 @@ export default function ShopDashboard() {
                       <div 
                         className="absolute left-6 h-[2px] bg-accent-primary transition-all duration-500 z-0"
                         style={{
-                          width: `calc(${((activeStageNum - 1) / 4) * 100}% - 12px)`
+                          width: `calc(${((activeStageNum - 1) / 5) * 100}% - 12px)`
                         }}
                       />
                       
@@ -1314,7 +1317,7 @@ export default function ShopDashboard() {
                                 }
                                 t.events = evts;
                                 t.status = stageName;
-                                if (stageNum === 5 && !t.closedAt) {
+                                if (stageNum === 6 && !t.closedAt) {
                                   t.closedAt = new Date().toISOString();
                                 }
                                 localStorage.setItem('tallerpro_tickets', JSON.stringify(allTix));
@@ -1412,6 +1415,45 @@ export default function ShopDashboard() {
                             <div key={stage} className="flex justify-between border-b border-white/5 pb-1">
                               <span className="text-gray-400 font-semibold">{stage}</span>
                               <span className="text-white font-mono font-bold">{displayTime}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {/* Checklist Rápido */}
+                  {selectedDetailsTicket.inventoryChecklist && (
+                    <div className="card-morphism !bg-white/5 p-6 space-y-4">
+                      <h3 className="text-sm font-bold text-gray-400 uppercase border-b border-white/10 pb-2">Checklist de Recepción</h3>
+                      <div className="space-y-2 text-xs">
+                        {Object.entries(selectedDetailsTicket.inventoryChecklist).map(([key, val]) => {
+                          const label = key === 'gasolina' ? 'Gasolina (>50%)' : key === 'refaccion' ? 'Llanta Refacción' : key === 'gato' ? 'Gato Hidráulico' : key === 'herramienta' ? 'Herr. Básica' : 'Estéreo / Pantalla';
+                          return (
+                            <div key={key} className="flex items-center gap-2 font-bold">
+                              <span className={`w-2 h-2 rounded-full ${val ? 'bg-accent-success' : 'bg-gray-600'}`} />
+                              <span className={val ? 'text-white' : 'text-gray-500 line-through'}>{label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evidencia Visual (Multiple photos) */}
+                  {selectedDetailsTicket.photos && Object.keys(selectedDetailsTicket.photos).some(k => ['frontal', 'trasera', 'lat_izq', 'lat_der', 'odometro'].includes(k)) && (
+                    <div className="card-morphism !bg-white/5 p-6 space-y-4">
+                      <h3 className="text-sm font-bold text-gray-400 uppercase border-b border-white/10 pb-2">Evidencia Visual</h3>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {['frontal', 'trasera', 'lat_izq', 'lat_der', 'odometro'].map(slotId => {
+                          const photoUrl = selectedDetailsTicket.photos[slotId];
+                          if (!photoUrl) return null;
+                          const label = slotId === 'frontal' ? 'Frontal' : slotId === 'trasera' ? 'Trasera' : slotId === 'lat_izq' ? 'Lateral Izq.' : slotId === 'lat_der' ? 'Lateral Der.' : 'Tablero/Odómetro';
+                          return (
+                            <div key={slotId} className="relative aspect-square rounded-xl overflow-hidden border border-white/10">
+                              <img src={photoUrl} alt={label} className="w-full h-full object-cover" />
+                              <div className="absolute inset-x-0 bottom-0 bg-black/60 p-1 text-center backdrop-blur-sm">
+                                <span className="text-[8px] font-bold text-accent-primary uppercase truncate block">{label}</span>
+                              </div>
                             </div>
                           );
                         })}

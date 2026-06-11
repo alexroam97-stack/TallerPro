@@ -58,18 +58,7 @@ export const getTickets = () => {
     localStorage.setItem(DB_KEY, JSON.stringify(defaultTickets));
     return defaultTickets;
   }
-  const parsed = JSON.parse(data);
-  let migrated = false;
-  parsed.forEach(ticket => {
-    if (ticket.phone !== '526633040096') {
-      ticket.phone = '526633040096';
-      migrated = true;
-    }
-  });
-  if (migrated) {
-    localStorage.setItem(DB_KEY, JSON.stringify(parsed));
-  }
-  return parsed;
+  return JSON.parse(data);
 };
 
 export const addTicket = (client, vehicle, serviceType = 'Mecánica', phone = '', insuranceType = 'particular', insuranceCompany = '', claimNumber = '') => {
@@ -117,7 +106,7 @@ export const deleteTicket = (ticketId) => {
   return true;
 };
 
-export const addEventToTicket = (ticketId, eventId, photoBase64 = null) => {
+export const addEventToTicket = (ticketId, eventId, photoBase64 = null, photosMap = null, checklist = null) => {
   const tickets = getTickets();
   const ticketIndex = tickets.findIndex(t => t.id === ticketId);
   if (ticketIndex > -1) {
@@ -133,20 +122,27 @@ export const addEventToTicket = (ticketId, eventId, photoBase64 = null) => {
       }
     }
     
+    if (!t.photos) t.photos = {};
     if (photoBase64) {
-      if (!t.photos) t.photos = {};
       t.photos[eventId] = photoBase64;
     }
+    if (photosMap) {
+      t.photos = { ...t.photos, ...photosMap };
+    }
+
+    if (checklist) {
+      t.inventoryChecklist = checklist;
+    }
     
-    // Map event ID to status name dynamically
+    // Map event ID to status name dynamically (6 stages now)
     const stages = t.serviceType === 'Hojalatería y Pintura'
-      ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
-      : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
+      ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo', 'Entregado']
+      : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo', 'Entregado'];
       
     t.status = stages[eventId - 1] || t.status;
     
-    // Auto-close ticket when reaching 'Listo' (step 5)
-    if (eventId === 5 && !t.closedAt) {
+    // Auto-close ticket when reaching 'Entregado' (step 6)
+    if (eventId === 6 && !t.closedAt) {
       t.closedAt = new Date().toISOString();
     }
 

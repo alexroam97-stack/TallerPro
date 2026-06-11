@@ -80,14 +80,18 @@ export const SecurityProvider = ({ children }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
-export const ProtectedRoute = ({ children }) => {
+export const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-900 text-white">Cargando...</div>;
+  if (loading) return <div className="flex items-center justify-center h-screen bg-[#0a0c10] text-white">Cargando...</div>;
 
   if (!user) {
     return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
   }
 
   return children;

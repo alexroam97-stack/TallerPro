@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package, Shield } from 'lucide-react';
+import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package, Shield, MapPin, Phone } from 'lucide-react';
 import { getTicket, updateBudgetStatus, getParts, saveSignature, addEventToTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
@@ -19,12 +19,23 @@ export default function ClientTracker() {
   const [deliverySignature, setDeliverySignature] = useState('');
   const [signatureSaved, setSignatureSaved] = useState(false);
   const [shopPhone, setShopPhone] = useState('526633040096');
+  const [shopInfo, setShopInfo] = useState({
+    name: 'TallerPro',
+    logo: '',
+    phone: '526633040096',
+    address: 'Av. de la Reforma 123, Ciudad de México'
+  });
+  
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [verificationError, setVerificationError] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem('tallerpro_settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        setShopInfo(prev => ({ ...prev, ...parsed }));
         if (parsed.phone) {
           setShopPhone(parsed.phone);
         }
@@ -36,11 +47,39 @@ export default function ClientTracker() {
 
   useEffect(() => {
     if (ticketId) {
-      setTicket(getTicket(ticketId));
+      const found = getTicket(ticketId);
+      setTicket(found);
       const allParts = getParts();
       setParts(allParts.filter(p => p.ticketId === ticketId));
+      
+      // Staff automatically bypasses the client verification gate
+      if (user) {
+        setIsUnlocked(true);
+      }
     }
-  }, [ticketId]);
+  }, [ticketId, user]);
+
+  const handleVerifyPhone = (e) => {
+    e.preventDefault();
+    if (!ticket) return;
+    
+    const ticketPhone = ticket.phone || '';
+    const cleanTicketPhone = ticketPhone.replace(/\D/g, '');
+    const cleanInput = phoneInput.replace(/\D/g, '');
+    
+    if (cleanInput.length < 4) {
+      setVerificationError('Por favor ingresa los 4 dígitos.');
+      return;
+    }
+    
+    const last4 = cleanTicketPhone.slice(-4);
+    if (cleanInput === last4) {
+      setIsUnlocked(true);
+      setVerificationError('');
+    } else {
+      setVerificationError('Número incorrecto. Por favor, verifica con el personal del taller.');
+    }
+  };
 
   const handleBudgetAction = (status) => {
     updateBudgetStatus(ticketId, status);
@@ -60,43 +99,13 @@ export default function ClientTracker() {
     window.open(`https://wa.me/${cleanShopPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  const handleAdvanceStage = () => {
-    if (!ticket) return;
-    const currentEvents = ticket.events || [1];
-    const nextEventId = currentEvents.length + 1;
-    if (nextEventId <= 5) {
-      addEventToTicket(ticket.id, nextEventId);
-      
-      const updatedTicket = getTicket(ticket.id);
-      setTicket(updatedTicket);
-      
-      // Auto-notify client via WhatsApp
-      if (updatedTicket.phone) {
-        const stages = updatedTicket.serviceType === 'Hojalatería y Pintura'
-          ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo']
-          : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo'];
-        const nextStepName = stages[nextEventId - 1] || updatedTicket.status;
-        
-        const link = generateWhatsAppLink(
-          updatedTicket.phone,
-          updatedTicket.client,
-          updatedTicket.vehicle,
-          nextStepName,
-          updatedTicket.id
-        );
-        if (link) {
-          window.open(link, '_blank');
-        }
-      }
-    }
-  };
-
   const mechanicalEvents = [
     { id: 1, title: 'Recepción del Vehículo', time: 'Ingresado', desc: 'El vehículo ha sido recibido y el inventario completado.', icon: <Check size={18} /> },
     { id: 2, title: 'Diagnóstico Técnico', time: 'En Revisión', desc: 'Nuestros técnicos están escaneando y revisando los sistemas del vehículo.', photo: 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&q=80&w=800', icon: <Check size={18} /> },
     { id: 3, title: 'Reparación / Mantenimiento', time: 'En proceso', desc: 'Se están realizando los trabajos mecánicos autorizados.', photo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&q=80&w=800', icon: <Wrench size={18} /> },
     { id: 4, title: 'Pruebas y QC', time: 'Pendiente', desc: 'Verificación final de sistemas y prueba de manejo.', icon: <Clock size={18} /> },
-    { id: 5, title: 'Listo para Entrega', time: 'Completado', desc: 'Vehículo verificado y listo para ser recogido.', icon: <Check size={18} /> }
+    { id: 5, title: 'Listo para Entrega', time: 'Completado', desc: 'Vehículo verificado y listo para ser recogido.', icon: <Check size={18} /> },
+    { id: 6, title: 'Entregado al Cliente', time: 'Entregado', desc: 'Vehículo entregado bajo firma de conformidad.', icon: <Check size={18} /> }
   ];
 
   const bodyPaintEvents = [
@@ -104,7 +113,8 @@ export default function ClientTracker() {
     { id: 2, title: 'Desarmado y Hojalatería', time: 'En proceso', desc: 'Reparación de golpes y alineación de carrocería.', photo: 'https://images.unsplash.com/photo-1513258496099-48168024adb0?auto=format&fit=crop&q=80&w=800', icon: <Wrench size={18} /> },
     { id: 3, title: 'Preparación y Pintura', time: 'Pendiente', desc: 'Aplicación de primarios, base color y transparente en cabina.', photo: 'https://images.unsplash.com/photo-1599256872237-5dcc0fbe9668?auto=format&fit=crop&q=80&w=800', icon: <Check size={18} /> },
     { id: 4, title: 'Armado y Detallado', time: 'Pendiente', desc: 'Reinstalación de piezas, pulido y limpieza profunda.', icon: <Check size={18} /> },
-    { id: 5, title: 'Control de Calidad / Listo', time: 'Completado', desc: 'Inspección final de acabados y entrega al cliente.', icon: <Check size={18} /> }
+    { id: 5, title: 'Control de Calidad / Listo', time: 'Completado', desc: 'Inspección final de acabados y listo para entrega.', icon: <Check size={18} /> },
+    { id: 6, title: 'Entregado al Cliente', time: 'Entregado', desc: 'Vehículo entregado bajo firma de conformidad.', icon: <Check size={18} /> }
   ];
 
   const baseEvents = ticket?.serviceType === 'Hojalatería y Pintura' ? bodyPaintEvents : mechanicalEvents;
@@ -125,6 +135,77 @@ export default function ClientTracker() {
       status: isCompleted ? 'completed' : isActive ? 'active' : 'pending'
     };
   });
+
+  if (ticketId && !ticket) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center text-white overflow-hidden">
+        <div className="bg-glow" />
+        <div className="card-morphism max-w-md text-center p-8 space-y-6">
+          <Logo size="md" />
+          <h2 className="text-2xl font-black text-red-400">Orden no encontrada</h2>
+          <p className="text-gray-400 text-sm">El ticket ID <strong>{ticketId}</strong> no coincide con ninguna orden en nuestro sistema.</p>
+          <button onClick={() => navigate('/')} className="btn-premium w-full py-3">Volver al Inicio</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isUnlocked) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center text-white overflow-hidden">
+        <div className="bg-glow" />
+        <main className="w-full max-w-md p-4 relative z-10">
+          <div className="text-center mb-8">
+            <Logo size="md" />
+          </div>
+          <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] shadow-ui border-white/20 text-center space-y-6">
+            <div className="inline-block p-4 rounded-full bg-accent-primary/10">
+              <Shield className="text-accent-primary" size={36} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-white">Verificación de Cliente</h2>
+              <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                Por motivos de privacidad y protección de datos, ingresa los últimos 4 dígitos del número telefónico registrado para el ticket <strong>{ticketId}</strong>.
+              </p>
+            </div>
+            
+            <form onSubmit={handleVerifyPhone} className="space-y-4">
+              <div className="space-y-1 text-left">
+                <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Últimos 4 dígitos</label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  pattern="\d{4}"
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-xl font-bold tracking-widest text-white focus:outline-none focus:border-accent-primary transition-colors"
+                  placeholder="••••"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+
+              {verificationError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-bold leading-normal">
+                  {verificationError}
+                </div>
+              )}
+
+              <button type="submit" className="btn-premium w-full py-4 text-xs font-black uppercase tracking-wider shadow-lg shadow-accent-primary/20">
+                Verificar y Entrar
+              </button>
+            </form>
+
+            <button 
+              onClick={() => navigate('/')}
+              className="text-xs text-gray-500 hover:text-white transition-colors uppercase font-bold tracking-wider"
+            >
+              Cancelar
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen flex flex-col text-white overflow-hidden selection:bg-accent-primary/30">
@@ -166,16 +247,6 @@ export default function ClientTracker() {
                </span>
              </div>
            ) : null}
-            {ticket && (!ticket.events || ticket.events.length < 5) && (
-              <div className="mt-6 border-t border-white/5 pt-4">
-                <button
-                  onClick={handleAdvanceStage}
-                  className="px-6 py-2.5 bg-accent-primary text-black font-black text-xs rounded-xl hover:bg-white transition-all uppercase tracking-wider shadow-lg shadow-accent-primary/20"
-                >
-                  Avanzar Etapa (Demo)
-                </button>
-              </div>
-            )}
         </div>
 
         <div className="space-y-12 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-white/10">
@@ -206,9 +277,46 @@ export default function ClientTracker() {
                 </div>
                 <p className="text-gray-400 font-medium leading-relaxed mb-4">{event.desc}</p>
                 
-                {event.photo && event.status !== 'pending' && (
+                {event.id === 1 && ticket?.photos && Object.keys(ticket.photos).some(k => ['frontal', 'trasera', 'lat_izq', 'lat_der', 'odometro'].includes(k)) ? (
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {['frontal', 'trasera', 'lat_izq', 'lat_der', 'odometro'].map(slotId => {
+                      const photoUrl = ticket.photos[slotId];
+                      if (!photoUrl) return null;
+                      const label = slotId === 'frontal' ? 'Frontal' : slotId === 'trasera' ? 'Trasera' : slotId === 'lat_izq' ? 'Lateral Izq.' : slotId === 'lat_der' ? 'Lateral Der.' : 'Tablero/Odómetro';
+                      return (
+                        <div 
+                          key={slotId} 
+                          className="relative aspect-square rounded-xl overflow-hidden border border-white/10 group cursor-pointer"
+                          onClick={() => setSelectedPhoto(photoUrl)}
+                        >
+                          <img src={photoUrl} alt={label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          <div className="absolute inset-x-0 bottom-0 bg-black/60 p-1 text-center backdrop-blur-sm">
+                            <span className="text-[9px] font-bold text-accent-primary uppercase truncate block">{label}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : event.photo && event.status !== 'pending' ? (
                   <div className="rounded-2xl overflow-hidden border border-white/10 shadow-lg group">
                     <img src={event.photo} alt={event.title} className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700" />
+                  </div>
+                ) : null}
+
+                {event.id === 1 && ticket?.inventoryChecklist && (
+                  <div className="mt-4 p-4 bg-white/5 rounded-xl border border-white/5 text-xs">
+                    <p className="text-[10px] font-black text-accent-primary uppercase tracking-wider mb-2">Checklist de Recepción</p>
+                    <div className="grid grid-cols-2 gap-2 text-gray-300">
+                      {Object.entries(ticket.inventoryChecklist).map(([key, val]) => {
+                        const label = key === 'gasolina' ? 'Gasolina (>50%)' : key === 'refaccion' ? 'Llanta Refacción' : key === 'gato' ? 'Gato Hidráulico' : key === 'herramienta' ? 'Herr. Básica' : 'Estéreo / Pantalla';
+                        return (
+                          <div key={key} className="flex items-center gap-1.5 font-bold">
+                            <span className={`w-2 h-2 rounded-full ${val ? 'bg-accent-success' : 'bg-gray-600'}`} />
+                            <span className={val ? 'text-white' : 'text-gray-500 line-through'}>{label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -466,7 +574,7 @@ export default function ClientTracker() {
                   <div className="bg-white/10 rounded-2xl p-4 border border-white/10 flex items-center justify-center h-32">
                     <img src={ticket?.signatureDelivery || deliverySignature} alt="Firma de Entrega" className="max-h-full max-w-full object-contain" />
                   </div>
-                ) : ticket?.status === 'Entrega' || ticket?.closedAt ? (
+                ) : ticket?.status === 'Listo' ? (
                   <div className="space-y-4">
                     <SignatureCanvas 
                       onChange={setDeliverySignature} 
@@ -477,8 +585,9 @@ export default function ClientTracker() {
                       disabled={!deliverySignature}
                       onClick={() => {
                         saveSignature(ticketId, 'delivery', deliverySignature);
+                        addEventToTicket(ticketId, 6); // advance to stage 6 (Entregado)
                         setSignatureSaved(true);
-                        setTicket({ ...ticket, signatureDelivery: deliverySignature });
+                        setTicket(getTicket(ticketId));
                       }}
                       className={`btn-premium w-full py-3 text-xs font-black uppercase tracking-wider ${!deliverySignature ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
@@ -487,13 +596,62 @@ export default function ClientTracker() {
                   </div>
                 ) : (
                   <div className="rounded-2xl p-4 border border-white/5 bg-white/5 flex items-center justify-center h-32 text-gray-500 text-xs font-bold uppercase leading-normal">
-                    Firma disponible cuando el auto esté listo
+                    {ticket?.status === 'Entregado' || ticket?.closedAt 
+                      ? 'Entregado'
+                      : 'Firma disponible cuando el auto esté listo'}
                   </div>
                 )}
               </div>
               <p className="text-[10px] text-gray-500 mt-4 leading-normal">
                 Firma digital de conformidad del cliente al recibir el coche finalizado.
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Información y Contacto del Taller */}
+        <div className="mt-16 animate-fade-in-up [animation-delay:800ms]">
+          <div className="flex items-center gap-3 mb-6">
+            <MapPin className="text-accent-primary" size={28} />
+            <h2 className="text-2xl font-black tracking-tight">Contacto y Ubicación</h2>
+          </div>
+          
+          <div className="card-morphism !bg-white/5 border-none p-6 shadow-ui relative overflow-hidden flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+            <div className="space-y-3">
+              <h3 className="text-xl font-black text-white">{shopInfo.name.toUpperCase()}</h3>
+              {shopInfo.address && (
+                <div className="text-xs text-gray-400 font-bold uppercase leading-normal">
+                  <span className="text-[10px] text-gray-500 block">Dirección</span>
+                  {shopInfo.address}
+                </div>
+              )}
+              {shopInfo.phone && (
+                <div className="text-xs text-gray-400 font-bold uppercase">
+                  <span className="text-[10px] text-gray-500 block">Teléfono de Soporte</span>
+                  {shopInfo.phone}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
+              {shopInfo.address && (
+                <a 
+                  href={`https://maps.google.com/?q=${encodeURIComponent(shopInfo.address)}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn-premium py-3.5 px-6 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 text-center"
+                >
+                  <MapPin size={16} /> Cómo Llegar
+                </a>
+              )}
+              {shopInfo.phone && (
+                <a 
+                  href={`tel:${shopInfo.phone}`} 
+                  className="btn-secondary py-3.5 px-6 text-xs font-black uppercase tracking-wider border-white/10 text-gray-300 hover:text-white flex items-center justify-center gap-2 text-center"
+                >
+                  <Phone size={16} /> Llamar al Taller
+                </a>
+              )}
             </div>
           </div>
         </div>
