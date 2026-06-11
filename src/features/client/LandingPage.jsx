@@ -7,6 +7,7 @@ import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import { compressImage } from '../../skills/imageUtils';
 import { saveSettings } from '../../services/mockDb';
+import CanvasMechanicBackground from '../../components/CanvasMechanicBackground';
 const pricingPlans = [
   { 
     name: 'Básico', 
@@ -178,14 +179,8 @@ export default function LandingPage() {
 
       {/* 1. Hero Section */}
       <main className="container mx-auto px-6 pt-16 pb-20 relative z-10 text-center overflow-hidden rounded-[2.5rem]">
-        {/* Custom created H.264 MP4 background video */}
-        <video
-          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-30"
-          src="/assets/hero-bg.mp4"
-          autoPlay
-          muted
-          playsInline
-        />
+        {/* Interactive mechanics canvas background */}
+        <CanvasMechanicBackground />
         {/* Dark radial glow overlay on top of video to integrate with theme and protect text contrast */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0c10]/20 via-[#0a0c10]/50 to-[#0a0c10] z-0 pointer-events-none" />
         
