@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Check, X, AlertTriangle, Camera, Package, Trash2, ClipboardCheck, FileText, CheckCircle2 } from 'lucide-react';
-import { getParts, addPart, updatePart, deletePart, getTickets } from '../../services/mockDb';
+import { getParts, addPart, updatePart, deletePart, getTickets } from '../../services/api';
 import { compressImage } from '../../skills/imageUtils';
 
 export default function PartsInventory() {

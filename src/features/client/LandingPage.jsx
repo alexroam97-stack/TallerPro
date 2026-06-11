@@ -6,7 +6,7 @@ import { useAuth } from '../../skills/security';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import { compressImage } from '../../skills/imageUtils';
-import { saveSettings } from '../../services/mockDb';
+import { saveSettings } from '../../services/api';
 import CanvasMechanicBackground from '../../components/CanvasMechanicBackground';
 const pricingPlans = [
   { 

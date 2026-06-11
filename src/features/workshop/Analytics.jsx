@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getTickets, getParts } from '../../services/mockDb';
+import { getTickets, getParts } from '../../services/api';
 import { Clock, CheckCircle2, Car, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
 
 export default function Analytics() {

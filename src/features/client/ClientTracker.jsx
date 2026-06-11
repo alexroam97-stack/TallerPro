@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package, Shield, MapPin, Phone } from 'lucide-react';
-import { getTicket, updateBudgetStatus, getParts, saveSignature, addEventToTicket, getSettings } from '../../services/mockDb';
+import { getTicket, updateBudgetStatus, getParts, saveSignature, addEventToTicket, getSettings } from '../../services/api';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import InteractiveVehicleSVG from '../workshop/InteractiveVehicleSVG';
@@ -14,6 +14,7 @@ export default function ClientTracker() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [ticket, setTicket] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [parts, setParts] = useState([]);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [deliverySignature, setDeliverySignature] = useState('');
@@ -47,6 +48,7 @@ export default function ClientTracker() {
 
   useEffect(() => {
     if (ticketId) {
+      setLoading(true);
       getTicket(ticketId)
         .then(found => {
           setTicket(found);
@@ -54,7 +56,10 @@ export default function ClientTracker() {
             setIsUnlocked(true);
           }
         })
-        .catch(console.error);
+        .catch(console.error)
+        .finally(() => {
+          setLoading(false);
+        });
         
       getParts()
         .then(allParts => {
@@ -160,6 +165,19 @@ export default function ClientTracker() {
       status: isCompleted ? 'completed' : isActive ? 'active' : 'pending'
     };
   });
+
+  if (loading) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center text-white overflow-hidden">
+        <div className="bg-glow" />
+        <div className="flex flex-col items-center gap-4">
+          <Logo size="md" className="animate-pulse" />
+          <div className="w-10 h-10 border-4 border-accent-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-2">Cargando información del vehículo...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (ticketId && !ticket) {
     return (

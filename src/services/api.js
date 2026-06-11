@@ -83,8 +83,15 @@ export const addEventToTicket = async (ticketId, eventId, photoBase64 = null, ph
   if (photoBase64) {
     nextPhotos[eventId] = photoBase64;
   }
-  if (photosMap) {
-    Object.assign(nextPhotos, photosMap);
+  if (photosMap && Object.keys(photosMap).length > 0) {
+    if (eventId === 1) {
+      Object.assign(nextPhotos, photosMap);
+    } else {
+      const firstPhoto = Object.values(photosMap).find(Boolean);
+      if (firstPhoto) {
+        nextPhotos[eventId] = firstPhoto;
+      }
+    }
   }
 
   const stages = ticket.serviceType === 'Hojalatería y Pintura'

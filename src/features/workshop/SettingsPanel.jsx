@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Save, Upload, HelpCircle, RefreshCw } from 'lucide-react';
+import { Settings, Save, Upload, HelpCircle, RefreshCw, Check } from 'lucide-react';
 import { compressImage } from '../../skills/imageUtils';
-import { getSettings, saveSettings } from '../../services/mockDb';
+import { getSettings, saveSettings } from '../../services/api';
 
 export default function SettingsPanel() {
   const [settings, setSettings] = useState({
@@ -15,6 +15,7 @@ export default function SettingsPanel() {
 
   const [isUploading, setIsUploading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [dbType, setDbType] = useState('Local File');
   
   const fileInputRef = useRef(null);
 
@@ -23,6 +24,9 @@ export default function SettingsPanel() {
       .then(saved => {
         if (saved) {
           setSettings(prev => ({ ...prev, ...saved }));
+          if (saved.dbType) {
+            setDbType(saved.dbType);
+          }
         }
       })
       .catch(console.error);
@@ -99,7 +103,12 @@ export default function SettingsPanel() {
           <div className="flex items-center gap-3">
             <Settings className="text-accent-primary" size={24} />
             <div>
-              <h2 className="text-2xl font-black text-white">Configuración del Negocio</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-black text-white">Configuración del Negocio</h2>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${dbType === 'PostgreSQL' ? 'bg-accent-success/10 border-accent-success/20 text-accent-success' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                  DB: {dbType}
+                </span>
+              </div>
               <p className="text-xs text-gray-500 font-bold uppercase mt-0.5">Personaliza tu marca y facturación</p>
             </div>
           </div>
@@ -270,5 +279,4 @@ export default function SettingsPanel() {
   );
 }
 
-// Icon helper since Check is used above but imported from lucide-react (wait, let's import Check from lucide-react)
-import { Check } from 'lucide-react';
+

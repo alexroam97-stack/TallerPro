@@ -4,7 +4,8 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const settings = await getSettings();
-      return res.status(200).json(settings);
+      const dbType = process.env.DATABASE_URL ? 'PostgreSQL' : 'Local File';
+      return res.status(200).json({ ...settings, dbType });
     }
 
     if (req.method === 'PUT') {

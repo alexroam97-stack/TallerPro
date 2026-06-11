@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings } from '../services/mockDb';
+import { getSettings } from '../services/api';
 
 export default function Logo({ size = "md", className = "" }) {
   const [settings, setSettings] = useState({

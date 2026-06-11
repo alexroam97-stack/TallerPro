@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Receipt, FileText, Calculator } from 'lucide-react';
-import { updateTicketBilling, getSettings } from '../../services/mockDb';
+import { updateTicketBilling, getSettings } from '../../services/api';
 
 const getSuggestedSatKey = (description, type, serviceType) => {
   const desc = description.toLowerCase();

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical } from 'lucide-react';
-import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs, updateTicket } from '../../services/mockDb';
+import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs, updateTicket } from '../../services/api';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';

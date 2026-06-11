@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Image as ImageIcon, Play, Pause, Timer, LogOut } from 'lucide-react';
-import { getTickets, addEventToTicket, getTicketEvents, updateTimeLogs } from '../../services/mockDb';
+import { getTickets, addEventToTicket, getTicketEvents, updateTimeLogs } from '../../services/api';
 import { generateWhatsAppLink } from '../../services/notifications';
 import { compressImage } from '../../skills/imageUtils';
 import { useAuth } from '../../skills/security';
@@ -27,7 +27,7 @@ export default function TechnicianApp() {
   const { logout, user } = useAuth();
   const [step, setStep] = useState(1); 
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const [mockTickets, setMockTickets] = useState([]);
+  const [activeTickets, setActiveTickets] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   
@@ -63,7 +63,7 @@ export default function TechnicianApp() {
   };
 
   useEffect(() => {
-    getTickets().then(all => setMockTickets(all)).catch(console.error);
+    getTickets().then(all => setActiveTickets(all)).catch(console.error);
   }, []);
 
   const handleSelectTicket = (ticket) => {
@@ -115,7 +115,7 @@ export default function TechnicianApp() {
           const match = decodedText.match(regex);
           if (match && match[1]) {
             const ticketId = match[1];
-            const found = mockTickets.find(t => t.id === ticketId);
+            const found = activeTickets.find(t => t.id === ticketId);
             if (found) {
               handleSelectTicket(found);
               setIsScanning(false);
@@ -125,7 +125,7 @@ export default function TechnicianApp() {
             }
           } else {
             if (decodedText.startsWith('TKT-')) {
-              const found = mockTickets.find(t => t.id === decodedText);
+              const found = activeTickets.find(t => t.id === decodedText);
               if (found) {
                 handleSelectTicket(found);
                 setIsScanning(false);
@@ -154,7 +154,7 @@ export default function TechnicianApp() {
         }
       }
     };
-  }, [isScanning, mockTickets]);
+  }, [isScanning, activeTickets]);
 
   const handleSlotClick = (slotId) => {
     setActiveSlot(slotId);
@@ -184,7 +184,7 @@ export default function TechnicianApp() {
     setInventory(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleSimulateUpload = async () => {
+  const handleSaveStageProgress = async () => {
     if (selectedTicket) {
       try {
         const currentEvents = selectedTicket.events || [];
@@ -217,7 +217,7 @@ export default function TechnicianApp() {
       setSelectedTicket(null);
       try {
         const all = await getTickets();
-        setMockTickets(all);
+        setActiveTickets(all);
       } catch (err) {
         console.error(err);
       }
@@ -307,7 +307,7 @@ export default function TechnicianApp() {
             <div className="text-center text-gray-500 font-bold tracking-widest mb-4">O SELECCIONA DE LA LISTA</div>
             
             <div className="space-y-4 pb-12">
-              {mockTickets.map(t => (
+              {activeTickets.map(t => (
                 <button 
                   key={t.id} 
                   className="w-full card-morphism flex justify-between items-center group active:scale-95 text-left" 
@@ -427,7 +427,7 @@ export default function TechnicianApp() {
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#050B14] via-[#050B14] to-transparent z-20">
               <button 
                 className={`btn-premium w-full max-w-lg mx-auto py-5 text-xl font-black tracking-widest flex items-center justify-center gap-3 shadow-ui transition-all ${!isUploadReady ? 'opacity-50 cursor-not-allowed grayscale' : ''}`} 
-                onClick={handleSimulateUpload}
+                onClick={handleSaveStageProgress}
                 disabled={!isUploadReady || isCompressing}
               >
                 <CheckCircle2 size={24} />

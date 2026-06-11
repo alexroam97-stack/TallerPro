@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../skills/security';
-import { getTicket } from '../../services/mockDb';
+import { getTicket } from '../../services/api';
 import { CheckCircle, LogIn, Eye, Car, ShieldAlert, ArrowLeft } from 'lucide-react';
 import Logo from '../../components/Logo';
 

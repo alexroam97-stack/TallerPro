@@ -41,13 +41,13 @@ const checkRoutes = () => {
     }
 };
 
-// 3. Check for sequential ID patterns in mockDb.js
+// 3. Check for sequential ID patterns in api.js
 const checkDbIds = () => {
-    const dbPath = path.join(ROOT_DIR, 'src/services/mockDb.js');
+    const dbPath = path.join(ROOT_DIR, 'src/services/api.js');
     if (fs.existsSync(dbPath)) {
         const content = fs.readFileSync(dbPath, 'utf8');
         if (content.includes('`TKT-${String(tickets.length + 1).padStart(3, \'0\')}`')) {
-            findings.push(`[SECURITY] Sequential Ticket ID generation found in mockDb.js. Use obfuscated IDs.`);
+            findings.push(`[SECURITY] Sequential Ticket ID generation found in api.js. Use obfuscated IDs.`);
         }
     }
 };
