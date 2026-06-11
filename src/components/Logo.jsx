@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getSettings } from '../services/mockDb';
 
 export default function Logo({ size = "md", className = "" }) {
   const [settings, setSettings] = useState({
@@ -7,14 +8,30 @@ export default function Logo({ size = "md", className = "" }) {
   });
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('tallerpro_settings');
-      if (saved) {
-        setSettings(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    let active = true;
+    getSettings()
+      .then(data => {
+        if (active && data) {
+          setSettings(data);
+        }
+      })
+      .catch(console.error);
+
+    const handleUpdate = () => {
+      getSettings()
+        .then(data => {
+          if (active && data) {
+            setSettings(data);
+          }
+        })
+        .catch(console.error);
+    };
+
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener('storage', handleUpdate);
+    };
   }, []);
 
   const sizes = {

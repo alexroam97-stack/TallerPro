@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical } from 'lucide-react';
-import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs } from '../../services/mockDb';
+import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs, updateTicket } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
@@ -213,7 +213,7 @@ export default function ShopDashboard() {
   };
 
   useEffect(() => {
-    setTickets(getTickets());
+    getTickets().then(all => setTickets(all)).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -239,187 +239,203 @@ export default function ShopDashboard() {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEditTicket = (e) => {
+  const handleSaveEditTicket = async (e) => {
     e.preventDefault();
     if (!selectedEditTicket) return;
     
-    const allTix = getTickets();
-    const idx = allTix.findIndex(t => t.id === selectedEditTicket.id);
-    if (idx > -1) {
-      allTix[idx].client = editClient;
-      allTix[idx].vehicle = editVehicle;
-      allTix[idx].phone = editPhone;
-      allTix[idx].serviceType = editServiceType;
-      allTix[idx].insuranceType = editInsuranceType;
-      allTix[idx].insuranceCompany = editInsuranceType === 'aseguranza' ? editInsuranceCompany : '';
-      allTix[idx].claimNumber = editInsuranceType === 'aseguranza' ? editClaimNumber : '';
-      allTix[idx].damagedPanels = editServiceType === 'Hojalatería y Pintura' ? editDamagedPanels : [];
-      
-      localStorage.setItem('tallerpro_tickets', JSON.stringify(allTix));
+    const fields = {
+      client: editClient,
+      vehicle: editVehicle,
+      phone: editPhone,
+      serviceType: editServiceType,
+      insuranceType: editInsuranceType,
+      insuranceCompany: editInsuranceType === 'aseguranza' ? editInsuranceCompany : '',
+      claimNumber: editInsuranceType === 'aseguranza' ? editClaimNumber : '',
+      damagedPanels: editServiceType === 'Hojalatería y Pintura' ? editDamagedPanels : []
+    };
+
+    try {
+      await updateTicket(selectedEditTicket.id, fields);
+      const allTix = await getTickets();
       setTickets(allTix);
-    }
-    
-    if (selectedDetailsTicket && selectedDetailsTicket.id === selectedEditTicket.id) {
-      const updatedDetails = getTickets().find(t => t.id === selectedEditTicket.id);
-      setSelectedDetailsTicket(updatedDetails);
+      
+      if (selectedDetailsTicket && selectedDetailsTicket.id === selectedEditTicket.id) {
+        const updatedDetails = allTix.find(t => t.id === selectedEditTicket.id);
+        setSelectedDetailsTicket(updatedDetails);
+      }
+    } catch (err) {
+      console.error(err);
     }
     
     setIsEditModalOpen(false);
     setSelectedEditTicket(null);
   };
 
-  const handleQuickQC = (partId, status) => {
+  const handleQuickQC = async (partId, status) => {
     let notes = '';
     if (status === 'rejected') {
       notes = prompt('Por favor, ingresa el motivo del rechazo en el control de calidad:');
-      if (notes === null) return; // cancelado
+      if (notes === null) return;
       if (!notes.trim()) {
         alert('Debe ingresar un motivo para rechazar la pieza.');
         return;
       }
     }
     
-    updatePart(partId, {
-      status: status,
-      qcNotes: notes,
-      inspectedBy: 'Técnico Principal',
-      inspectedAt: new Date().toISOString(),
-      qcChecked: status === 'approved' 
-        ? { visual: true, packaging: true, compatibility: true, functional: true }
-        : { visual: false, packaging: false, compatibility: false, functional: false }
-    });
-    
-    setTickets(getTickets());
+    try {
+      await updatePart(partId, {
+        status: status,
+        qcNotes: notes,
+        inspectedBy: 'Técnico Principal',
+        inspectedAt: new Date().toISOString(),
+        qcChecked: status === 'approved' 
+          ? { visual: true, packaging: true, compatibility: true, functional: true }
+          : { visual: false, packaging: false, compatibility: false, functional: false }
+      });
+      
+      const all = await getTickets();
+      setTickets(all);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleUpdateBudgetStatus = (ticketId, status) => {
-    updateBudgetStatus(ticketId, status);
-    setTickets(getTickets());
-    setSelectedDetailsTicket(prev => prev ? { ...prev, budgetStatus: status } : null);
+  const handleUpdateBudgetStatus = async (ticketId, status) => {
+    try {
+      await updateBudgetStatus(ticketId, status);
+      const all = await getTickets();
+      setTickets(all);
+      setSelectedDetailsTicket(prev => prev ? { ...prev, budgetStatus: status } : null);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAdvanceStage = (ticket) => {
+  const handleAdvanceStage = async (ticket) => {
     const currentEvents = ticket.events || [1];
     const nextEventId = currentEvents.length + 1;
     if (nextEventId <= 6) {
-      addEventToTicket(ticket.id, nextEventId);
-      
-      const updatedTickets = getTickets();
-      setTickets(updatedTickets);
-      
-      const updatedTicket = updatedTickets.find(t => t.id === ticket.id);
-      if (selectedDetailsTicket && selectedDetailsTicket.id === ticket.id) {
-        setSelectedDetailsTicket(updatedTicket);
-      }
-      
-      // Auto-notify client via WhatsApp
-      if (updatedTicket && updatedTicket.phone) {
-        const stages = updatedTicket.serviceType === 'Hojalatería y Pintura'
+      try {
+        await addEventToTicket(ticket.id, nextEventId);
+        
+        const stages = ticket.serviceType === 'Hojalatería y Pintura'
           ? ['Recepción', 'Hojalatería', 'Pintura', 'Armado', 'Listo', 'Entregado']
           : ['Recepción', 'Diagnóstico', 'Reparación', 'Pruebas', 'Listo', 'Entregado'];
-        const nextStepName = stages[nextEventId - 1] || updatedTicket.status;
+        const nextStepName = stages[nextEventId - 1] || ticket.status;
         
-        // Log default 300 seconds (5 minutes) for stage analytics
-        updateTimeLogs(ticket.id, nextStepName, 300);
+        await updateTimeLogs(ticket.id, nextStepName, 300);
         
-        const link = generateWhatsAppLink(
-          updatedTicket.phone,
-          updatedTicket.client,
-          updatedTicket.vehicle,
-          nextStepName,
-          updatedTicket.id
-        );
-        if (link) {
-          window.open(link, '_blank');
+        const updatedTickets = await getTickets();
+        setTickets(updatedTickets);
+        
+        const updatedTicket = updatedTickets.find(t => t.id === ticket.id);
+        if (selectedDetailsTicket && selectedDetailsTicket.id === ticket.id) {
+          setSelectedDetailsTicket(updatedTicket);
         }
+        
+        if (updatedTicket && updatedTicket.phone) {
+          const link = generateWhatsAppLink(
+            updatedTicket.phone,
+            updatedTicket.client,
+            updatedTicket.vehicle,
+            nextStepName,
+            updatedTicket.id
+          );
+          if (link) {
+            window.open(link, '_blank');
+          }
+        }
+      } catch (e) {
+        console.error(e);
       }
     }
   };
 
-  const handleDeleteTicket = (ticketId) => {
+  const handleDeleteTicket = async (ticketId) => {
     if (window.confirm(`¿Seguro que deseas eliminar la orden de trabajo ${ticketId}? Esta acción no se puede deshacer y borrará también las piezas del inventario vinculadas.`)) {
-      deleteTicket(ticketId);
-      setTickets(getTickets());
-      if (selectedDetailsTicket && selectedDetailsTicket.id === ticketId) {
-        setSelectedDetailsTicket(null);
+      try {
+        await deleteTicket(ticketId);
+        const all = await getTickets();
+        setTickets(all);
+        if (selectedDetailsTicket && selectedDetailsTicket.id === ticketId) {
+          setSelectedDetailsTicket(null);
+        }
+      } catch (e) {
+        console.error(e);
       }
     }
   };
 
-  const handleAddTicket = (e) => {
+  const handleAddTicket = async (e) => {
     e.preventDefault();
     if (!newClient || !newVehicle) return;
-    const newTicket = addTicket(newClient, newVehicle, newServiceType, newPhone, newInsuranceType, newInsuranceCompany, newClaimNumber);
     
-    // Save items (budget)
-    if (newBudgetItems.length > 0) {
-      newTicket.items = newBudgetItems;
-    }
-    
-    // Save damaged panels
-    if (newDamagedPanels.length > 0) {
-      newTicket.damagedPanels = newDamagedPanels;
-    }
-    
-    // Save intake signature
-    if (newSignatureIntake) {
-      saveSignature(newTicket.id, 'intake', newSignatureIntake);
-      newTicket.signatureIntake = newSignatureIntake;
-    }
-
-    // Register parts in database
-    newBudgetItems.forEach(item => {
-      if (item.type === 'Refacción') {
-        addPart({
-          name: item.desc,
-          brand: item.brand || 'Genérica',
-          qty: item.qty || 1,
-          vehicleCompatibility: newVehicle,
-          ticketId: newTicket.id,
-          status: 'pending',
-          cost: item.cost || 0,
-          salePrice: item.price || 0,
-          qcNotes: '',
-          photo: '',
-          qcChecked: { visual: false, packaging: false, compatibility: false, functional: false },
-          inspectedBy: '',
-          inspectedAt: ''
-        });
+    try {
+      const createdTicket = await addTicket(
+        newClient,
+        newVehicle,
+        newServiceType,
+        newPhone,
+        newInsuranceType,
+        newInsuranceCompany,
+        newClaimNumber
+      );
+      
+      if (newSignatureIntake) {
+        await saveSignature(createdTicket.id, 'intake', newSignatureIntake);
       }
-    });
-    
-    // Update immediately to DB
-    const allTix = getTickets();
-    const idx = allTix.findIndex(t => t.id === newTicket.id);
-    if(idx > -1) {
-      allTix[idx].damagedPanels = newDamagedPanels;
-      allTix[idx].items = newBudgetItems;
-      allTix[idx].signatureIntake = newSignatureIntake;
-      localStorage.setItem('tallerpro_tickets', JSON.stringify(allTix));
-    }
-    
-    setTickets([...tickets.filter(t => t.id !== newTicket.id), { ...newTicket, damagedPanels: newDamagedPanels, items: newBudgetItems, signatureIntake: newSignatureIntake }]);
-    setIsModalOpen(false);
-    
-    // Automatically trigger WhatsApp notification to the client
-    const cleanPhone = newPhone.replace(/\D/g, '');
-    if (cleanPhone) {
-      const trackerUrl = `${window.location.origin}/tracker/${newTicket.id}`;
-      const autoMessage = `Hola *${newClient}*, te informamos que tu vehículo *${newVehicle}* ha ingresado a taller con el ID de ticket *${newTicket.id}*. Por favor, ingresa al siguiente enlace para verificar la información de tu vehículo, conceptos y refacciones, y autorizar o rechazar la cotización directamente: ${trackerUrl}`;
-      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(autoMessage)}`, '_blank');
-    }
 
-    // Reset inputs
-    setNewClient('');
-    setNewVehicle('');
-    setNewPhone('');
-    setNewServiceType('Mecánica');
-    setNewDamagedPanels([]);
-    setNewInsuranceType('particular');
-    setNewInsuranceCompany('');
-    setNewClaimNumber('');
-    setNewSignatureIntake('');
-    setNewBudgetItems([]);
+      for (const item of newBudgetItems) {
+        if (item.type === 'Refacción') {
+          await addPart({
+            name: item.desc,
+            brand: item.brand || 'Genérica',
+            qty: item.qty || 1,
+            vehicleCompatibility: newVehicle,
+            ticketId: createdTicket.id,
+            status: 'pending',
+            cost: item.cost || 0,
+            salePrice: item.price || 0,
+            qcNotes: '',
+            photo: '',
+            qcChecked: { visual: false, packaging: false, compatibility: false, functional: false },
+            inspectedBy: '',
+            inspectedAt: ''
+          });
+        }
+      }
+      
+      await updateTicket(createdTicket.id, {
+        damagedPanels: newDamagedPanels,
+        items: newBudgetItems,
+        signatureIntake: newSignatureIntake
+      });
+      
+      const allTix = await getTickets();
+      setTickets(allTix);
+      setIsModalOpen(false);
+      
+      setNewClient('');
+      setNewVehicle('');
+      setNewPhone('');
+      setNewBudgetItems([]);
+      setNewDamagedPanels([]);
+      setNewSignatureIntake('');
+      setNewServiceType('Mecánica');
+      setNewInsuranceType('particular');
+      setNewInsuranceCompany('');
+      setNewClaimNumber('');
+      
+      const cleanPhone = newPhone.replace(/\D/g, '');
+      if (cleanPhone) {
+        const trackerUrl = `${window.location.origin}/tracker/${createdTicket.id}`;
+        const autoMessage = `Hola *${newClient}*, te informamos que tu vehículo *${newVehicle}* ha ingresado a taller con el ID de ticket *${createdTicket.id}*. Por favor, ingresa al siguiente enlace para verificar la información de tu vehículo, conceptos y refacciones, y autorizar o rechazar la cotización directamente: ${trackerUrl}`;
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(autoMessage)}`, '_blank');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error al crear la orden de trabajo');
+    }
   };
 
   return (
@@ -1306,29 +1322,35 @@ export default function ShopDashboard() {
                         return (
                           <button
                             key={stageName}
-                            onClick={() => {
-                              const allTix = getTickets();
-                              const idx = allTix.findIndex(t => t.id === selectedDetailsTicket.id);
-                              if (idx > -1) {
-                                const t = allTix[idx];
-                                const evts = [];
-                                for (let i = 1; i <= stageNum; i++) {
-                                  evts.push(i);
-                                }
-                                t.events = evts;
-                                t.status = stageName;
-                                if (stageNum === 6 && !t.closedAt) {
-                                  t.closedAt = new Date().toISOString();
-                                }
-                                localStorage.setItem('tallerpro_tickets', JSON.stringify(allTix));
-                                setTickets(allTix);
-                                setSelectedDetailsTicket(t);
+                            onClick={async () => {
+                              const evts = [];
+                              for (let i = 1; i <= stageNum; i++) {
+                                evts.push(i);
+                              }
+                              const closedAt = (stageNum === 6 && !selectedDetailsTicket.closedAt)
+                                ? new Date().toISOString()
+                                : selectedDetailsTicket.closedAt;
                                 
-                                // Auto-notify client via WhatsApp
-                                if (t.phone) {
-                                  const link = generateWhatsAppLink(t.phone, t.client, t.vehicle, stageName, t.id);
-                                  if (link) window.open(link, '_blank');
+                              const fields = {
+                                events: evts,
+                                status: stageName,
+                                closedAt
+                              };
+                              
+                              try {
+                                const updated = await updateTicket(selectedDetailsTicket.id, fields);
+                                if (updated) {
+                                  const all = await getTickets();
+                                  setTickets(all);
+                                  setSelectedDetailsTicket(updated);
+                                  
+                                  if (updated.phone) {
+                                    const link = generateWhatsAppLink(updated.phone, updated.client, updated.vehicle, stageName, updated.id);
+                                    if (link) window.open(link, '_blank');
+                                  }
                                 }
+                              } catch (err) {
+                                console.error(err);
                               }
                             }}
                             className="relative z-10 flex flex-col items-center group cursor-pointer focus:outline-none"

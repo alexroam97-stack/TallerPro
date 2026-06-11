@@ -61,7 +61,7 @@ export default function TechnicianApp() {
   };
 
   useEffect(() => {
-    setMockTickets(getTickets());
+    getTickets().then(all => setMockTickets(all)).catch(console.error);
   }, []);
 
   const handleSelectTicket = (ticket) => {
@@ -182,44 +182,49 @@ export default function TechnicianApp() {
     setInventory(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleSimulateUpload = () => {
+  const handleSimulateUpload = async () => {
     if (selectedTicket) {
-      const currentEvents = getTicketEvents(selectedTicket.id);
-      const nextEventId = currentEvents.length + 1;
-      const nextStepName = getNextStepName();
-      
-      // Persist the photos map and inventory checklist in the event stage
-      addEventToTicket(selectedTicket.id, Math.min(nextEventId, 6), null, photos, inventory);
-      
-      // Save elapsed seconds to timeLogs
-      updateTimeLogs(selectedTicket.id, nextStepName, elapsedSeconds);
-      
-      // Auto-notify client via WhatsApp
-      if (selectedTicket.phone) {
-        const link = generateWhatsAppLink(
-          selectedTicket.phone,
-          selectedTicket.client,
-          selectedTicket.vehicle,
-          nextStepName,
-          selectedTicket.id
-        );
-        if (link) {
-          window.open(link, '_blank');
+      try {
+        const currentEvents = selectedTicket.events || [];
+        const nextEventId = currentEvents.length + 1;
+        const nextStepName = getNextStepName();
+        
+        await addEventToTicket(selectedTicket.id, Math.min(nextEventId, 6), null, photos, inventory);
+        await updateTimeLogs(selectedTicket.id, nextStepName, elapsedSeconds);
+        
+        if (selectedTicket.phone) {
+          const link = generateWhatsAppLink(
+            selectedTicket.phone,
+            selectedTicket.client,
+            selectedTicket.vehicle,
+            nextStepName,
+            selectedTicket.id
+          );
+          if (link) {
+            window.open(link, '_blank');
+          }
         }
+      } catch (err) {
+        console.error(err);
       }
     }
     
     setStep(3);
-    setTimeout(() => {
+    setTimeout(async () => {
       setStep(1);
       setSelectedTicket(null);
-      setMockTickets(getTickets());
+      try {
+        const all = await getTickets();
+        setMockTickets(all);
+      } catch (err) {
+        console.error(err);
+      }
     }, 4000);
   };
 
   const getNextStepName = () => {
     if (!selectedTicket) return '';
-    const currentEvents = getTicketEvents(selectedTicket.id);
+    const currentEvents = selectedTicket.events || [];
     const nextEventId = Math.min(currentEvents.length + 1, 6);
     
     const stages = selectedTicket.serviceType === 'Hojalatería y Pintura' 

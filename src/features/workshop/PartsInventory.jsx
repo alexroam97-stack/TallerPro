@@ -48,45 +48,58 @@ export default function PartsInventory() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    setParts(getParts());
-    setTickets(getTickets().filter(t => t.status !== 'Entrega')); // Solo tickets activos
+    getParts().then(allParts => setParts(allParts)).catch(console.error);
+    getTickets().then(allTix => setTickets(allTix.filter(t => t.status !== 'Entrega'))).catch(console.error);
   }, []);
 
-  const refreshData = () => {
-    setParts(getParts());
+  const refreshData = async () => {
+    try {
+      const allParts = await getParts();
+      setParts(allParts);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleCreatePart = (e) => {
+  const handleCreatePart = async (e) => {
     e.preventDefault();
     if (!newPart.name) return;
     
-    addPart({
-      ...newPart,
-      qcChecked: { visual: false, packaging: false, compatibility: false, functional: false },
-      inspectedBy: '',
-      inspectedAt: ''
-    });
-    
-    setIsAddModalOpen(false);
-    setNewPart({
-      name: '',
-      brand: '',
-      qty: 1,
-      vehicleCompatibility: '',
-      ticketId: '',
-      status: 'pending',
-      qcNotes: '',
-      photo: '',
-      cost: 0,
-      salePrice: 0
-    });
-    refreshData();
+    try {
+      await addPart({
+        ...newPart,
+        qcChecked: { visual: false, packaging: false, compatibility: false, functional: false },
+        inspectedBy: '',
+        inspectedAt: ''
+      });
+      
+      setIsAddModalOpen(false);
+      setNewPart({
+        name: '',
+        brand: '',
+        qty: 1,
+        vehicleCompatibility: '',
+        ticketId: '',
+        status: 'pending',
+        qcNotes: '',
+        photo: '',
+        cost: 0,
+        salePrice: 0
+      });
+      await refreshData();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleDeletePart = (id) => {
+  const handleDeletePart = async (id) => {
     if (window.confirm('¿Seguro que deseas eliminar esta pieza del inventario?')) {
-      deletePart(id);
-      refreshData();
+      try {
+        await deletePart(id);
+        await refreshData();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -107,7 +120,6 @@ export default function PartsInventory() {
   const handleQCCheckboxChange = (key) => {
     setQcChecked(prev => {
       const updated = { ...prev, [key]: !prev[key] };
-      // Opcional: auto-sugerir aprobado si todos están marcados
       const allChecked = Object.values(updated).every(v => v === true);
       if (allChecked) {
         setQcStatus('approved');
@@ -132,29 +144,32 @@ export default function PartsInventory() {
     }
   };
 
-  const handleSaveQC = () => {
-    // Si el estado es rechazado, exigir una nota explicativa
+  const handleSaveQC = async () => {
     if (qcStatus === 'rejected' && !qcNotes.trim()) {
       alert('Por favor, ingresa una nota explicando el motivo del rechazo en el control de calidad.');
       return;
     }
 
-    updatePart(selectedPart.id, {
-      status: qcStatus,
-      qcNotes,
-      photo: qcPhoto,
-      qcChecked,
-      inspectedBy,
-      inspectedAt: new Date().toISOString(),
-      ticketId: qcTicketId,
-      vehicleCompatibility: qcVehicleCompatibility,
-      cost: qcCost,
-      salePrice: qcSalePrice
-    });
+    try {
+      await updatePart(selectedPart.id, {
+        status: qcStatus,
+        qcNotes,
+        photo: qcPhoto,
+        qcChecked,
+        inspectedBy,
+        inspectedAt: new Date().toISOString(),
+        ticketId: qcTicketId,
+        vehicleCompatibility: qcVehicleCompatibility,
+        cost: qcCost,
+        salePrice: qcSalePrice
+      });
 
-    setIsQCModalOpen(false);
-    setSelectedPart(null);
-    refreshData();
+      setIsQCModalOpen(false);
+      setSelectedPart(null);
+      await refreshData();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Calcular score de calidad

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Clock, Wrench, ChevronLeft, Car, Receipt, Download, XCircle, Package, Shield, MapPin, Phone } from 'lucide-react';
-import { getTicket, updateBudgetStatus, getParts, saveSignature, addEventToTicket } from '../../services/mockDb';
+import { getTicket, updateBudgetStatus, getParts, saveSignature, addEventToTicket, getSettings } from '../../services/mockDb';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import InteractiveVehicleSVG from '../workshop/InteractiveVehicleSVG';
@@ -31,31 +31,34 @@ export default function ClientTracker() {
   const [verificationError, setVerificationError] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('tallerpro_settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setShopInfo(prev => ({ ...prev, ...parsed }));
-        if (parsed.phone) {
-          setShopPhone(parsed.phone);
+    getSettings()
+      .then(parsed => {
+        if (parsed) {
+          setShopInfo(prev => ({ ...prev, ...parsed }));
+          if (parsed.phone) {
+            setShopPhone(parsed.phone);
+          }
         }
-      } catch (e) {
-        console.error(e);
-      }
-    }
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
     if (ticketId) {
-      const found = getTicket(ticketId);
-      setTicket(found);
-      const allParts = getParts();
-      setParts(allParts.filter(p => p.ticketId === ticketId));
-      
-      // Staff automatically bypasses the client verification gate
-      if (user) {
-        setIsUnlocked(true);
-      }
+      getTicket(ticketId)
+        .then(found => {
+          setTicket(found);
+          if (user) {
+            setIsUnlocked(true);
+          }
+        })
+        .catch(console.error);
+        
+      getParts()
+        .then(allParts => {
+          setParts(allParts.filter(p => p.ticketId === ticketId));
+        })
+        .catch(console.error);
     }
   }, [ticketId, user]);
 
@@ -81,22 +84,25 @@ export default function ClientTracker() {
     }
   };
 
-  const handleBudgetAction = (status) => {
-    updateBudgetStatus(ticketId, status);
-    setTicket({ ...ticket, budgetStatus: status });
-    
-    // Simular notificación al taller vía WhatsApp
-    const cleanShopPhone = shopPhone.replace(/\D/g, '');
-    const actionText = status === 'approved' ? 'ACEPTADO' : 'DECLINADO';
-    
-    let message = `Hola, soy el cliente del ticket ${ticketId} (${ticket.vehicle}). He ${actionText} el presupuesto.`;
-    if (status === 'approved') {
-      const scanUrl = `${window.location.origin}/scan/${ticketId}`;
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
-      message = `Hola, he confirmado la reparación de mi vehículo *${ticket.vehicle}* (Ticket: *${ticketId}*). Aquí está mi Pase QR de Cliente para el taller: ${qrImageUrl}`;
+  const handleBudgetAction = async (status) => {
+    try {
+      await updateBudgetStatus(ticketId, status);
+      setTicket(prev => ({ ...prev, budgetStatus: status }));
+      
+      const cleanShopPhone = shopPhone.replace(/\D/g, '');
+      const actionText = status === 'approved' ? 'ACEPTADO' : 'DECLINADO';
+      
+      let message = `Hola, soy el cliente del ticket ${ticketId} (${ticket.vehicle}). He ${actionText} el presupuesto.`;
+      if (status === 'approved') {
+        const scanUrl = `${window.location.origin}/scan/${ticketId}`;
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
+        message = `Hola, he confirmado la reparación de mi vehículo *${ticket.vehicle}* (Ticket: *${ticketId}*). Aquí está mi Pase QR de Cliente para el taller: ${qrImageUrl}`;
+      }
+      
+      window.open(`https://wa.me/${cleanShopPhone}?text=${encodeURIComponent(message)}`, '_blank');
+    } catch (e) {
+      console.error(e);
     }
-    
-    window.open(`https://wa.me/${cleanShopPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const mechanicalEvents = [
@@ -583,11 +589,17 @@ export default function ClientTracker() {
                     <button
                       type="button"
                       disabled={!deliverySignature}
-                      onClick={() => {
-                        saveSignature(ticketId, 'delivery', deliverySignature);
-                        addEventToTicket(ticketId, 6); // advance to stage 6 (Entregado)
-                        setSignatureSaved(true);
-                        setTicket(getTicket(ticketId));
+                      onClick={async () => {
+                        try {
+                          await saveSignature(ticketId, 'delivery', deliverySignature);
+                          await addEventToTicket(ticketId, 6); // advance to stage 6 (Entregado)
+                          setSignatureSaved(true);
+                          const updated = await getTicket(ticketId);
+                          setTicket(updated);
+                        } catch (err) {
+                          console.error(err);
+                          alert('Error al registrar firma de conformidad');
+                        }
                       }}
                       className={`btn-premium w-full py-3 text-xs font-black uppercase tracking-wider ${!deliverySignature ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >

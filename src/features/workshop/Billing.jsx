@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Receipt, FileText, Calculator } from 'lucide-react';
-import { updateTicketBilling } from '../../services/mockDb';
+import { updateTicketBilling, getSettings } from '../../services/mockDb';
 
 const getSuggestedSatKey = (description, type, serviceType) => {
   const desc = description.toLowerCase();
@@ -53,24 +53,27 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     defaultIva: 16
   });
 
-  useEffect(() => {
-    const saved = localStorage.getItem('tallerpro_settings');
-    if (saved) {
-      setSettings(prev => ({ ...prev, ...JSON.parse(saved) }));
-    }
-  }, []);
-
-  const [billingInfo, setBillingInfo] = useState(() => {
-    const savedSettings = JSON.parse(localStorage.getItem('tallerpro_settings') || '{}');
-    const defaultIva = savedSettings.defaultIva || 16;
-    return {
-      rfc: ticket.billingInfo?.rfc || '',
-      zip: ticket.billingInfo?.zip || '',
-      regime: ticket.billingInfo?.regime || '601',
-      usage: ticket.billingInfo?.usage || 'G03',
-      ivaRate: ticket.billingInfo?.ivaRate || defaultIva
-    };
+  const [billingInfo, setBillingInfo] = useState({
+    rfc: ticket.billingInfo?.rfc || '',
+    zip: ticket.billingInfo?.zip || '',
+    regime: ticket.billingInfo?.regime || '601',
+    usage: ticket.billingInfo?.usage || 'G03',
+    ivaRate: ticket.billingInfo?.ivaRate || 16
   });
+
+  useEffect(() => {
+    getSettings()
+      .then(saved => {
+        if (saved) {
+          setSettings(prev => ({ ...prev, ...saved }));
+          setBillingInfo(prev => ({
+            ...prev,
+            ivaRate: ticket.billingInfo?.ivaRate !== undefined ? ticket.billingInfo.ivaRate : (saved.defaultIva || 16)
+          }));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const [newItem, setNewItem] = useState({
     desc: '',
@@ -110,9 +113,13 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     saveChanges(items, updatedInfo);
   };
 
-  const saveChanges = (currentItems, currentInfo) => {
-    const updated = updateTicketBilling(ticket.id, { items: currentItems, billingInfo: currentInfo });
-    if (onUpdate) onUpdate(updated);
+  const saveChanges = async (currentItems, currentInfo) => {
+    try {
+      const updated = await updateTicketBilling(ticket.id, { items: currentItems, billingInfo: currentInfo });
+      if (onUpdate) onUpdate(updated);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (

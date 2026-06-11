@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Settings, Save, Upload, HelpCircle, RefreshCw } from 'lucide-react';
 import { compressImage } from '../../skills/imageUtils';
+import { getSettings, saveSettings } from '../../services/mockDb';
 
 export default function SettingsPanel() {
   const [settings, setSettings] = useState({
@@ -18,10 +19,13 @@ export default function SettingsPanel() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('tallerpro_settings');
-    if (saved) {
-      setSettings(prev => ({ ...prev, ...JSON.parse(saved) }));
-    }
+    getSettings()
+      .then(saved => {
+        if (saved) {
+          setSettings(prev => ({ ...prev, ...saved }));
+        }
+      })
+      .catch(console.error);
   }, []);
 
   const handleInputChange = (e) => {
@@ -45,22 +49,27 @@ export default function SettingsPanel() {
     }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    localStorage.setItem('tallerpro_settings', JSON.stringify(settings));
-    setIsSaved(true);
-    
-    // Dispatch a custom event to notify the rest of the application to reload settings (like Logo component)
-    window.dispatchEvent(new Event('storage'));
-    
-    setTimeout(() => {
-      setIsSaved(false);
-      // Reload page to apply branding immediately throughout the app
-      window.location.reload();
-    }, 1500);
+    try {
+      await saveSettings(settings);
+      setIsSaved(true);
+      
+      // Dispatch a custom event to notify the rest of the application to reload settings (like Logo component)
+      window.dispatchEvent(new Event('storage'));
+      
+      setTimeout(() => {
+        setIsSaved(false);
+        // Reload page to apply branding immediately throughout the app
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      alert('Error al guardar la configuración');
+    }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm('¿Seguro que deseas restaurar la marca predeterminada (TallerPro)?')) {
       const defaults = {
         name: 'TallerPro',
@@ -70,9 +79,14 @@ export default function SettingsPanel() {
         rfc: 'TPRO120409AA1',
         defaultIva: 16
       };
-      setSettings(defaults);
-      localStorage.setItem('tallerpro_settings', JSON.stringify(defaults));
-      window.location.reload();
+      
+      try {
+        await saveSettings(defaults);
+        setSettings(defaults);
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 

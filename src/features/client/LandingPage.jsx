@@ -6,6 +6,7 @@ import { useAuth } from '../../skills/security';
 import Logo from '../../components/Logo';
 import WhatsAppButton from '../../components/WhatsAppButton';
 import { compressImage } from '../../skills/imageUtils';
+import { saveSettings } from '../../services/mockDb';
 
 const pricingPlans = [
   { 
@@ -152,7 +153,12 @@ export default function LandingPage() {
       rfc: 'TPRO120409AA1',
       defaultIva: 16
     };
-    localStorage.setItem('tallerpro_settings', JSON.stringify(customSettings));
+    
+    try {
+      await saveSettings(customSettings);
+    } catch (err) {
+      console.error(err);
+    }
     
     loginWithCredentials({
       id: newUser.id,
