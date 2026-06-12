@@ -10,7 +10,8 @@ export default function SettingsPanel() {
     phone: '526633040096',
     address: 'Av. de la Reforma 123, Ciudad de México',
     rfc: 'TPRO120409AA1',
-    defaultIva: 16
+    defaultIva: 16,
+    maxBays: 10
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -81,7 +82,8 @@ export default function SettingsPanel() {
         phone: '526633040096',
         address: 'Av. de la Reforma 123, Ciudad de México',
         rfc: 'TPRO120409AA1',
-        defaultIva: 16
+        defaultIva: 16,
+        maxBays: 10
       };
       
       try {
@@ -229,27 +231,54 @@ export default function SettingsPanel() {
               />
             </div>
 
-            {/* IVA Predeterminado */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center ml-1">
-                <label className="text-xs font-bold text-gray-400 uppercase">Tasa de IVA Predeterminada</label>
-                <div className="group relative cursor-pointer text-gray-500 hover:text-white">
-                  <HelpCircle size={14} />
-                  <div className="absolute right-0 bottom-6 hidden group-hover:block bg-slate-900 border border-white/10 p-3 rounded-lg text-[10px] w-64 shadow-xl z-20 font-medium normal-case leading-relaxed">
-                    Usa 16% para la mayor parte del país. Usa 8% si tu negocio está en la franja fronteriza norte o sur de México (Estímulo Fiscal Región Fronteriza).
+            {/* IVA & Capacidad de Bahías */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* IVA Predeterminado */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase">Tasa de IVA Predeterminada</label>
+                  <div className="group relative cursor-pointer text-gray-500 hover:text-white">
+                    <HelpCircle size={14} />
+                    <div className="absolute right-0 bottom-6 hidden group-hover:block bg-slate-900 border border-white/10 p-3 rounded-lg text-[10px] w-64 shadow-xl z-20 font-medium normal-case leading-relaxed">
+                      Usa 16% para la mayor parte del país. Usa 8% si tu negocio está en la franja fronteriza norte o sur de México (Estímulo Fiscal Región Fronteriza).
+                    </div>
                   </div>
                 </div>
+                <select 
+                  name="defaultIva"
+                  className="w-full bg-[#0d1117] border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold"
+                  value={settings.defaultIva}
+                  onChange={(e) => setSettings(prev => ({ ...prev, defaultIva: parseInt(e.target.value) || 16 }))}
+                >
+                  <option value="16">16% (Nacional General)</option>
+                  <option value="8">8% (Región Fronteriza Norte/Sur)</option>
+                  <option value="0">0% (Tasa Cero / Exento)</option>
+                </select>
               </div>
-              <select 
-                name="defaultIva"
-                className="w-full bg-[#0d1117] border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold"
-                value={settings.defaultIva}
-                onChange={(e) => setSettings(prev => ({ ...prev, defaultIva: parseInt(e.target.value) || 16 }))}
-              >
-                <option value="16">16% (Nacional General)</option>
-                <option value="8">8% (Región Fronteriza Norte/Sur)</option>
-                <option value="0">0% (Tasa Cero / Exento)</option>
-              </select>
+
+              {/* Capacidad de Bahías */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase">Capacidad de Bahías</label>
+                  <div className="group relative cursor-pointer text-gray-500 hover:text-white">
+                    <HelpCircle size={14} />
+                    <div className="absolute right-0 bottom-6 hidden group-hover:block bg-slate-900 border border-white/10 p-3 rounded-lg text-[10px] w-64 shadow-xl z-20 font-medium normal-case leading-relaxed">
+                      Número máximo de bahías de servicio activas simultáneamente. Se utiliza para calcular el porcentaje de ocupación en Analíticas.
+                    </div>
+                  </div>
+                </div>
+                <input 
+                  name="maxBays"
+                  type="number"
+                  min="1"
+                  max="100"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm font-semibold font-mono"
+                  placeholder="Ej. 10"
+                  value={settings.maxBays || 10}
+                  onChange={(e) => setSettings(prev => ({ ...prev, maxBays: parseInt(e.target.value) || 10 }))}
+                  required
+                />
+              </div>
             </div>
           </div>
 

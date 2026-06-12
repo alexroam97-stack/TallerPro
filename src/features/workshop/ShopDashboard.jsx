@@ -107,9 +107,10 @@ export default function ShopDashboard() {
 
   useEffect(() => {
     if (selectedDetailsTicket) {
-      const allParts = getParts();
-      const linkedParts = allParts.filter(p => p.ticketId === selectedDetailsTicket.id);
-      setDetailsParts(linkedParts);
+      getParts().then(allParts => {
+        const linkedParts = (allParts || []).filter(p => p.ticketId === selectedDetailsTicket.id);
+        setDetailsParts(linkedParts);
+      }).catch(() => setDetailsParts([]));
     } else {
       setDetailsParts([]);
     }
@@ -984,6 +985,22 @@ export default function ShopDashboard() {
                       </div>
                     </div>
 
+                    {/* Metrics row */}
+                    <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-505 block">Valor de Vida (LTV)</span>
+                        <div className="text-xl font-black text-accent-primary">
+                          ${sc.tickets.reduce((sum, t) => sum + (t.items || []).reduce((itemSum, item) => itemSum + ((item.qty || 1) * (item.unitPrice || 0)), 0), 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-505 block">Órdenes Activas</span>
+                        <div className="text-xl font-black text-white">
+                          {sc.tickets.filter(t => !t.closedAt && t.status !== 'Entrega').length}
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Contact info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -1098,15 +1115,18 @@ export default function ShopDashboard() {
                                 <span className="text-xs font-black text-accent-primary">{t.id}</span>
                                 <span className="text-xs text-gray-400 truncate">{t.vehicle}</span>
                               </div>
-                              <p className="text-xs text-gray-500 mt-0.5 truncate">{t.description || t.serviceType}</p>
+                              <p className="text-xs text-gray-500 mt-0.5 truncate">{t.serviceType || 'Servicio General'}</p>
                             </div>
                             <div className="flex-shrink-0 text-right">
                               <span className="text-xs px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary font-bold border border-accent-primary/20">
                                 {t.status}
                               </span>
-                              {t.totalCost > 0 && (
-                                <p className="text-xs font-bold text-gray-400 mt-1">${t.totalCost?.toLocaleString()}</p>
-                              )}
+                              {(() => {
+                                const subtotal = (t.items || []).reduce((sum, item) => sum + ((item.qty || 1) * (item.unitPrice || 0)), 0);
+                                return subtotal > 0 ? (
+                                  <p className="text-xs font-bold text-gray-400 mt-1">${subtotal.toLocaleString()}</p>
+                                ) : null;
+                              })()}
                             </div>
                           </div>
                         ))}

@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getTickets, getParts } from '../../services/api';
+import { getTickets, getParts, getSettings } from '../../services/api';
 import { Clock, CheckCircle2, Car, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
 
 export default function Analytics() {
   const [parts, setParts] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [maxBays, setMaxBays] = useState(10);
 
   useEffect(() => {
-    Promise.all([getTickets(), getParts()])
-      .then(([tix, prts]) => {
+    Promise.all([getTickets(), getParts(), getSettings()])
+      .then(([tix, prts, settings]) => {
         setTickets(tix || []);
         setParts(prts || []);
+        if (settings?.maxBays && Number(settings.maxBays) > 0) {
+          setMaxBays(Number(settings.maxBays));
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -48,7 +52,6 @@ export default function Analytics() {
     const approvalRate = decisionTickets.length > 0 ? Math.round((approvedTickets.length / decisionTickets.length) * 100) : 0;
 
     // 3. Bay Occupancy
-    const maxBays = 10;
     const activeTickets = tickets.filter(t => !t.closedAt && t.status !== 'Entrega');
     const occupancyRate = Math.round((activeTickets.length / maxBays) * 100);
 
@@ -92,7 +95,7 @@ export default function Analytics() {
       partsProfit,
       avgStageTimes
     };
-  }, [tickets, parts]);
+  }, [tickets, parts, maxBays]);
 
   if (loading) {
     return (
