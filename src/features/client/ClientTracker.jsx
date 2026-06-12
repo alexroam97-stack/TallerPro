@@ -315,7 +315,9 @@ export default function ClientTracker() {
                     ${event.status === 'completed' ? 'bg-accent-success/20 text-accent-success' : 
                       event.status === 'active' ? 'bg-accent-primary/20 text-accent-primary' : 
                       'bg-gray-800 text-gray-400'}`}>
-                    {event.time}
+                    {event.status === 'completed' ? 'COMPLETADO' : 
+                     event.status === 'active' ? 'EN PROGRESO' : 
+                     'PENDIENTE'}
                   </span>
                 </div>
                 <p className="text-gray-400 font-medium leading-relaxed mb-4">{event.desc}</p>
