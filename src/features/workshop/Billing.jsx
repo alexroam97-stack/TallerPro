@@ -100,6 +100,45 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     saveChanges(updatedItems, billingInfo);
   };
 
+  const handleApplyTemplate = (e) => {
+    const template = e.target.value;
+    if (!template) return;
+    
+    let templateItems = [];
+    const timestamp = Date.now();
+    
+    if (template === 'afinacion') {
+      templateItems = [
+        { id: timestamp + 1, desc: 'Kit de Filtros y Bujías', qty: 1, price: 2800, type: 'Refacción', satKey: '25173100' },
+        { id: timestamp + 2, desc: 'Aceite Sintético 5W30 (Litro)', qty: 4, price: 280, type: 'Refacción', satKey: '15121500' },
+        { id: timestamp + 3, desc: 'Mano de Obra Afinación Completa', qty: 1, price: 1200, type: 'Mano de Obra', satKey: '78181500' }
+      ];
+    } else if (template === 'frenos') {
+      templateItems = [
+        { id: timestamp + 1, desc: 'Juego de Balatas Delanteras', qty: 1, price: 1400, type: 'Refacción', satKey: '25171700' },
+        { id: timestamp + 2, desc: 'Disco de Freno Delantero', qty: 2, price: 950, type: 'Refacción', satKey: '25171700' },
+        { id: timestamp + 3, desc: 'Mano de Obra Reemplazo y Rectificación', qty: 1, price: 850, type: 'Mano de Obra', satKey: '78181500' }
+      ];
+    } else if (template === 'pintura') {
+      templateItems = [
+        { id: timestamp + 1, desc: 'Material de Pintura y Acabado Bicapa', qty: 1, price: 1800, type: 'Refacción', satKey: '31211500' },
+        { id: timestamp + 2, desc: 'Mano de Obra Reparación y Pintura por Pieza', qty: 1, price: 2500, type: 'Mano de Obra', satKey: '73181100' }
+      ];
+    } else if (template === 'diagnostico') {
+      templateItems = [
+        { id: timestamp + 1, desc: 'Escaneo y Diagnóstico Computarizado OBD-II', qty: 1, price: 600, type: 'Mano de Obra', satKey: '78181500' }
+      ];
+    }
+    
+    if (templateItems.length > 0) {
+      const updatedItems = [...items, ...templateItems];
+      setItems(updatedItems);
+      saveChanges(updatedItems, billingInfo);
+    }
+    
+    e.target.value = '';
+  };
+
   const handleRemoveItem = (id) => {
     const updatedItems = items.filter(item => item.id !== id);
     setItems(updatedItems);
@@ -151,10 +190,26 @@ export default function Billing({ ticket, onClose, onUpdate }) {
           {/* Left: Items Management */}
           <div className="lg:col-span-2 space-y-6">
             <div className="card-morphism !bg-white/5 p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Plus size={20} className="text-accent-primary" />
-                Añadir Concepto
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-white/5 pb-4">
+                <h3 className="text-xl font-bold flex items-center gap-2 mb-0">
+                  <Plus size={20} className="text-accent-primary" />
+                  Añadir Concepto
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Plantillas rápidas:</span>
+                  <select 
+                    onChange={handleApplyTemplate}
+                    defaultValue=""
+                    className="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-accent-primary font-bold focus:outline-none focus:border-accent-primary transition-colors cursor-pointer"
+                  >
+                    <option value="" disabled>Cargar servicio...</option>
+                    <option value="afinacion">Afinación Mayor Completa</option>
+                    <option value="frenos">Cambio de Balatas y Discos</option>
+                    <option value="pintura">Hojalatería y Pintura de Pieza</option>
+                    <option value="diagnostico">Diagnóstico Computarizado (OBD-II)</option>
+                  </select>
+                </div>
+              </div>
               <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-gray-500 ml-1 uppercase">Descripción</label>

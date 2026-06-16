@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical, Camera, Mail, Phone } from 'lucide-react';
-import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs, updateTicket } from '../../services/api';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical, Camera, Mail, Phone, FileText } from 'lucide-react';
+import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs, updateTicket, getSettings } from '../../services/api';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
@@ -227,6 +227,153 @@ export default function ShopDashboard() {
     const cleanPhone = selectedWhatsAppTicket.phone.replace(/\D/g, '');
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(customMessage)}`, '_blank');
     setSelectedWhatsAppTicket(null);
+  };
+
+  const handlePrintIntakeSheet = async (ticket) => {
+    let shopName = 'TallerPro';
+    let rfc = 'TPRO120409AA1';
+    let address = 'Av. de la Reforma 123, Ciudad de México';
+    let phone = '526633040096';
+    
+    try {
+      const saved = await getSettings();
+      if (saved) {
+        shopName = saved.name || shopName;
+        rfc = saved.rfc || rfc;
+        address = saved.address || address;
+        phone = saved.phone || phone;
+      }
+    } catch (err) {
+      console.error('Error fetching settings for print:', err);
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const checklistItems = [
+      { id: 'gasolina', label: 'Gasolina (>50%)' },
+      { id: 'refaccion', label: 'Llanta Refacción' },
+      { id: 'gato', label: 'Gato Hidráulico' },
+      { id: 'herramienta', label: 'Herr. Básica' },
+      { id: 'estereo', label: 'Estéreo / Pantalla' }
+    ];
+
+    const checklistHtml = checklistItems.map(item => {
+      const isChecked = ticket.inventoryChecklist?.[item.id];
+      return `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 16px; font-weight: bold; font-family: monospace;">[${isChecked ? 'X' : ' '}]</span>
+          <span style="font-size: 13px; font-family: sans-serif; color: #333;">${item.label}</span>
+        </div>
+      `;
+    }).join('');
+
+    const damageHtml = (ticket.damagedPanels || []).length > 0
+      ? (ticket.damagedPanels || []).map(p => `
+          <div style="margin-bottom: 6px; font-family: sans-serif; font-size: 13px; color: #333;">
+            &bull; <strong>${p.panelId.replace(/-/g, ' ').toUpperCase()}</strong>: Daño ${p.damageLevel === 'HIGH' ? 'Alto' : p.damageLevel === 'MEDIUM' ? 'Medio' : 'Bajo'}
+          </div>
+        `).join('')
+      : '<div style="font-family: sans-serif; font-size: 13px; color: #777;">Sin daños registrados / Carrocería intacta</div>';
+
+    const rawHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Hoja de Ingreso - ${ticket.id}</title>
+          <style>
+            body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 30px; max-width: 800px; margin: 0 auto; color: #333; background: #fff; }
+            .container { padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #005f73; padding-bottom: 15px; margin-bottom: 25px; }
+            .grid-2 { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+            .section { border: 1px solid #ddd; padding: 15px; border-radius: 6px; }
+            .section-title { font-size: 14px; font-weight: bold; color: #005f73; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 12px; text-transform: uppercase; }
+            .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #777; border-top: 1px solid #eee; padding-top: 15px; }
+            .btn-print { background: #005f73; color: #fff; border: none; padding: 10px 20px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; }
+            @media print {
+              .no-print { display: none; }
+              body { padding: 0; }
+              .container { border: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="text-align: right;" class="no-print">
+            <button class="btn-print" onclick="window.print()">Imprimir Orden de Ingreso</button>
+          </div>
+          <div class="container">
+            <div class="header">
+              <div>
+                <h2 style="margin: 0; color: #005f73;">${shopName}</h2>
+                <p style="margin: 4px 0; font-size: 12px; color: #666;">RFC: ${rfc}</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #666;">${address}</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #666;">Tel: ${phone}</p>
+              </div>
+              <div style="text-align: right;">
+                <h2 style="margin: 0 0 5px 0; color: #005f73; letter-spacing: 1px;">ORDEN DE INGRESO</h2>
+                <h4 style="margin: 0; color: #333;">FOLIO: ${ticket.id}</h4>
+                <p style="margin: 4px 0 0 0; font-size: 11px; color: #777;">Ingreso: ${new Date(ticket.createdAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="section">
+                <div class="section-title">Datos del Cliente</div>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Nombre:</strong> ${ticket.client}</p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Teléfono:</strong> ${ticket.phone || '—'}</p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Email:</strong> ${ticket.email || '—'}</p>
+              </div>
+              <div class="section">
+                <div class="section-title">Datos del Vehículo</div>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Vehículo:</strong> ${ticket.vehicle}</p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Tipo de Servicio:</strong> ${ticket.serviceType}</p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Clasificación:</strong> ${ticket.insuranceType === 'aseguranza' ? `Aseguradora (${ticket.insuranceCompany || '—'})` : 'Particular'}</p>
+                ${ticket.claimNumber ? `<p style="margin: 4px 0; font-size: 13px;"><strong>Siniestro:</strong> ${ticket.claimNumber}</p>` : ''}
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="section">
+                <div class="section-title">Inventario de Recepción</div>
+                ${checklistHtml}
+              </div>
+              <div class="section">
+                <div class="section-title">Reporte de Carrocería</div>
+                ${damageHtml}
+              </div>
+            </div>
+
+            <div class="section" style="margin-top: 10px;">
+              <div class="section-title">Términos del Servicio</div>
+              <p style="font-size: 10px; color: #666; line-height: 1.4; margin: 0 0 15px 0;">
+                El firmante autoriza los trabajos descritos y el movimiento del vehículo fuera del taller para pruebas de carretera. El taller no se hace responsable por objetos de valor no declarados en el inventario. Las piezas retiradas se desecharán a menos que se solicite lo contrario por escrito.
+              </p>
+              <div style="display: flex; justify-content: space-around; align-items: flex-end; margin-top: 30px; min-height: 80px;">
+                <div style="text-align: center; width: 45%;">
+                  ${ticket.signatureIntake 
+                    ? `<img src="${ticket.signatureIntake}" style="max-height: 60px; max-width: 100%; border-bottom: 1px solid #ddd; margin-bottom: 4px;" />` 
+                    : '<div style="height: 60px; border-bottom: 1px solid #333; margin-bottom: 4px;"></div>'}
+                  <p style="margin: 0; font-size: 11px; font-weight: bold;">Firma de Conformidad Cliente</p>
+                </div>
+                <div style="text-align: center; width: 45%;">
+                  <div style="height: 60px; border-bottom: 1px solid #333; margin-bottom: 4px; display: flex; align-items: flex-end; justify-content: center;">
+                    <span style="font-size: 10px; color: #999; margin-bottom: 4px;">TallerPro Autorizado</span>
+                  </div>
+                  <p style="margin: 0; font-size: 11px; font-weight: bold;">Firma Responsable Recepción</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p>Este documento es una representación física digitalizada de la orden de ingreso registrada en la plataforma TallerPro.</p>
+              <p>TallerPro &copy; 2026</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(rawHtml);
+    printWindow.document.close();
   };
 
   useEffect(() => {
@@ -1700,6 +1847,12 @@ export default function ShopDashboard() {
                   <p className="text-xs text-gray-400 font-bold uppercase">{selectedDetailsTicket.client} &bull; {selectedDetailsTicket.phone}</p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
+                  <button 
+                    onClick={() => handlePrintIntakeSheet(selectedDetailsTicket)}
+                    className="btn-secondary !py-1.5 !px-3 text-xs flex items-center gap-1 font-black"
+                  >
+                    <FileText size={14} /> HOJA DE INGRESO
+                  </button>
                   <button 
                     onClick={() => handleOpenEditModal(selectedDetailsTicket)}
                     className="btn-premium !py-1.5 !px-3 text-xs flex items-center gap-1 font-black"
