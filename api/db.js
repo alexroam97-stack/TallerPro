@@ -25,6 +25,7 @@ export function signToken(user) {
     id: user.id,
     role: user.role,
     email: user.email,
+    workshopId: user.workshopId || user.id,
     exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS
   };
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -261,7 +262,8 @@ async function initializePostgres() {
         closedAt TEXT,
         email TEXT,
         clientPhoto TEXT,
-        vehiclePhoto TEXT
+        vehiclePhoto TEXT,
+        workshopId TEXT
       );
       
       CREATE TABLE IF NOT EXISTS parts (
@@ -278,37 +280,42 @@ async function initializePostgres() {
         inspectedBy TEXT,
         inspectedAt TEXT,
         cost REAL,
-        salePrice REAL
+        salePrice REAL,
+        workshopId TEXT
       );
       
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT
       );
-
+ 
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         name TEXT,
         email TEXT UNIQUE,
         password TEXT,
         picture TEXT,
-        role TEXT
+        role TEXT,
+        workshopId TEXT
       );
     `);
-
-    // Run alterations to guarantee columns exist on pre-existing ticket tables
+ 
+    // Run alterations to guarantee columns exist on pre-existing ticket/parts/users tables
     await pool.query(`
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS email TEXT;
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS clientPhoto TEXT;
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS vehiclePhoto TEXT;
+      ALTER TABLE tickets ADD COLUMN IF NOT EXISTS workshopId TEXT;
+      ALTER TABLE parts ADD COLUMN IF NOT EXISTS workshopId TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS workshopId TEXT;
     `);
     
     // Seed settings if empty
-    const checkSettings = await pool.query('SELECT count(*) FROM settings');
+    const checkSettings = await pool.query('SELECT count(*) FROM settings WHERE key = $1', ['settings_demo_workshop']);
     if (parseInt(checkSettings.rows[0].count) === 0) {
       await pool.query(
         'INSERT INTO settings (key, value) VALUES ($1, $2)',
-        ['tallerpro_settings', JSON.stringify(defaultSettings)]
+        ['settings_demo_workshop', JSON.stringify(defaultSettings)]
       );
     }
     
@@ -321,15 +328,15 @@ async function initializePostgres() {
             id, client, vehicle, serviceType, status, events, photos, items, billingInfo, phone,
             budgetStatus, damagedPanels, insuranceType, insuranceCompany, claimNumber,
             signatureIntake, signatureDelivery, timeLogs, inventoryChecklist, createdAt, closedAt,
-            email, clientPhoto, vehiclePhoto
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
+            email, clientPhoto, vehiclePhoto, workshopId
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
           [
             t.id, t.client, t.vehicle, t.serviceType, t.status, JSON.stringify(t.events),
             JSON.stringify(t.photos), JSON.stringify(t.items), JSON.stringify(t.billingInfo),
             t.phone, t.budgetStatus, JSON.stringify(t.damagedPanels), t.insuranceType,
             t.insuranceCompany, t.claimNumber, t.signatureIntake, t.signatureDelivery,
             JSON.stringify(t.timeLogs), JSON.stringify(t.inventoryChecklist), t.createdAt, t.closedAt,
-            t.email || '', t.clientPhoto || '', t.vehiclePhoto || ''
+            t.email || '', t.clientPhoto || '', t.vehiclePhoto || '', 'demo_workshop'
           ]
         );
       }
@@ -342,37 +349,37 @@ async function initializePostgres() {
         await pool.query(
           `INSERT INTO parts (
             id, name, brand, qty, vehicleCompatibility, ticketId, status, qcNotes, photo,
-            qcChecked, inspectedBy, inspectedAt, cost, salePrice
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            qcChecked, inspectedBy, inspectedAt, cost, salePrice, workshopId
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
           [
             p.id, p.name, p.brand, p.qty, p.vehicleCompatibility, p.ticketId, p.status,
             p.qcNotes, p.photo, JSON.stringify(p.qcChecked), p.inspectedBy, p.inspectedAt,
-            p.cost, p.salePrice
+            p.cost, p.salePrice, 'demo_workshop'
           ]
         );
       }
     }
-
+ 
     // Seed users if empty (with hashed passwords)
     const checkUsers = await pool.query('SELECT count(*) FROM users');
     if (parseInt(checkUsers.rows[0].count) === 0) {
       const { seedAdminHash, seedTechHash } = await getSeedHashes();
       await pool.query(
-        `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['demo_admin', 'Admin Demo', 'admin@tallerpro.com', seedAdminHash, 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', 'admin']
+        `INSERT INTO users (id, name, email, password, picture, role, workshopId) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        ['demo_admin', 'Admin Demo', 'admin@tallerpro.com', seedAdminHash, 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', 'admin', 'demo_workshop']
       );
       await pool.query(
-        `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['demo_tech', 'Técnico Demo', 'tech@tallerpro.com', seedTechHash, 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', 'mechanic']
+        `INSERT INTO users (id, name, email, password, picture, role, workshopId) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        ['demo_tech', 'Técnico Demo', 'tech@tallerpro.com', seedTechHash, 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', 'mechanic', 'demo_workshop']
       );
     }
-
+ 
     isDbInitialized = true;
   } catch (err) {
     console.error('[DB] Postgres init failed:', err.message);
   }
 }
-
+ 
 // ─── Local JSON DB ─────────────────────────────────────────────────
 function readLocalJson() {
   if (!fs.existsSync(localDbPath)) {
@@ -380,12 +387,14 @@ function readLocalJson() {
     const adminHash = bcrypt.hashSync('tallerpro2026', BCRYPT_ROUNDS);
     const techHash = bcrypt.hashSync('techpro2026', BCRYPT_ROUNDS);
     const initialData = {
-      tickets: defaultTickets,
-      parts: defaultParts,
-      settings: defaultSettings,
+      tickets: defaultTickets.map(t => ({ ...t, workshopId: 'demo_workshop' })),
+      parts: defaultParts.map(p => ({ ...p, workshopId: 'demo_workshop' })),
+      settings: {
+        demo_workshop: defaultSettings
+      },
       users: [
-        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: adminHash, picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
-        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: techHash, picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
+        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: adminHash, picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin', workshopId: 'demo_workshop' },
+        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: techHash, picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic', workshopId: 'demo_workshop' }
       ]
     };
     fs.writeFileSync(localDbPath, JSON.stringify(initialData, null, 2), 'utf8');
@@ -394,31 +403,59 @@ function readLocalJson() {
   try {
     const raw = fs.readFileSync(localDbPath, 'utf8');
     const parsed = JSON.parse(raw);
+    
+    // Ensure existing local data is updated if users/tickets lack workshopId
+    let changed = false;
+    
+    if (parsed.tickets && parsed.tickets.length > 0 && !('workshopId' in parsed.tickets[0])) {
+      parsed.tickets = parsed.tickets.map(t => ({ ...t, workshopId: t.workshopId || 'demo_workshop' }));
+      changed = true;
+    }
+    if (parsed.parts && parsed.parts.length > 0 && !('workshopId' in parsed.parts[0])) {
+      parsed.parts = parsed.parts.map(p => ({ ...p, workshopId: p.workshopId || 'demo_workshop' }));
+      changed = true;
+    }
+    if (parsed.settings && !('demo_workshop' in parsed.settings) && parsed.settings.name) {
+      // Migrate old flat settings to nested object
+      const oldSettings = { ...parsed.settings };
+      parsed.settings = {
+        demo_workshop: oldSettings
+      };
+      changed = true;
+    }
+    
     if (!parsed.users) {
       const adminHash = bcrypt.hashSync('tallerpro2026', BCRYPT_ROUNDS);
       const techHash = bcrypt.hashSync('techpro2026', BCRYPT_ROUNDS);
       parsed.users = [
-        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: adminHash, picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin' },
-        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: techHash, picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic' }
+        { id: 'demo_admin', name: 'Admin Demo', email: 'admin@tallerpro.com', password: adminHash, picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000', role: 'admin', workshopId: 'demo_workshop' },
+        { id: 'demo_tech', name: 'Técnico Demo', email: 'tech@tallerpro.com', password: techHash, picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff', role: 'mechanic', workshopId: 'demo_workshop' }
       ];
+      changed = true;
+    } else if (parsed.users.length > 0 && !('workshopId' in parsed.users[0])) {
+      parsed.users = parsed.users.map(u => ({ ...u, workshopId: u.workshopId || 'demo_workshop' }));
+      changed = true;
+    }
+    
+    if (changed) {
       fs.writeFileSync(localDbPath, JSON.stringify(parsed, null, 2), 'utf8');
     }
     return parsed;
   } catch {
-    return { tickets: [], parts: [], settings: defaultSettings, users: [] };
+    return { tickets: [], parts: [], settings: { demo_workshop: defaultSettings }, users: [] };
   }
 }
-
+ 
 function writeLocalJson(data) {
   fs.writeFileSync(localDbPath, JSON.stringify(data, null, 2), 'utf8');
 }
 
 // ─── Ticket Operations ─────────────────────────────────────────────
-export async function getTickets() {
+export async function getTickets(workshopId) {
   if (pool) {
     await initializePostgres();
     try {
-      const res = await pool.query('SELECT * FROM tickets');
+      const res = await pool.query('SELECT * FROM tickets WHERE workshopId = $1', [workshopId]);
       return res.rows.map(t => ({
         ...t,
         email: t.email || '',
@@ -436,7 +473,7 @@ export async function getTickets() {
       console.error('[DB] getTickets error:', err.message);
     }
   }
-  return readLocalJson().tickets;
+  return (readLocalJson().tickets || []).filter(t => t.workshopId === workshopId);
 }
 
 export async function getTicket(id) {
@@ -463,7 +500,7 @@ export async function getTicket(id) {
       console.error('[DB] getTicket error:', err.message);
     }
   }
-  const tickets = readLocalJson().tickets;
+  const tickets = readLocalJson().tickets || [];
   return tickets.find(t => t.id === id) || null;
 }
 
@@ -476,15 +513,15 @@ export async function addTicket(t) {
           id, client, vehicle, serviceType, status, events, photos, items, billingInfo, phone,
           budgetStatus, damagedPanels, insuranceType, insuranceCompany, claimNumber,
           signatureIntake, signatureDelivery, timeLogs, inventoryChecklist, createdAt, closedAt,
-          email, clientPhoto, vehiclePhoto
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
+          email, clientPhoto, vehiclePhoto, workshopId
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
         [
           t.id, t.client, t.vehicle, t.serviceType, t.status, JSON.stringify(t.events),
           JSON.stringify(t.photos), JSON.stringify(t.items), JSON.stringify(t.billingInfo),
           t.phone, t.budgetStatus, JSON.stringify(t.damagedPanels), t.insuranceType,
           t.insuranceCompany, t.claimNumber, t.signatureIntake, t.signatureDelivery,
           JSON.stringify(t.timeLogs), JSON.stringify(t.inventoryChecklist), t.createdAt, t.closedAt,
-          t.email || '', t.clientPhoto || '', t.vehiclePhoto || ''
+          t.email || '', t.clientPhoto || '', t.vehiclePhoto || '', t.workshopId
         ]
       );
       return t;
@@ -498,12 +535,13 @@ export async function addTicket(t) {
   return t;
 }
 
-export async function updateTicket(id, fields) {
+export async function updateTicket(id, fields, workshopId = null) {
   if (pool) {
     await initializePostgres();
     try {
       const current = await getTicket(id);
       if (!current) return null;
+      if (workshopId && current.workshopId !== workshopId) return null;
       
       const merged = { ...current, ...fields };
       
@@ -526,7 +564,7 @@ export async function updateTicket(id, fields) {
         ]
       );
 
-      // CRM Sync: Update email, phone, clientPhoto, and vehiclePhoto across all tickets of this client
+      // CRM Sync: Update email, phone, clientPhoto, and vehiclePhoto across all tickets of this client within the same workshop
       if (fields.email !== undefined || fields.clientPhoto !== undefined || fields.vehiclePhoto !== undefined || fields.phone !== undefined) {
         const updates = [];
         const vals = [];
@@ -548,8 +586,9 @@ export async function updateTicket(id, fields) {
           vals.push(fields.phone);
         }
         vals.push(current.client);
+        vals.push(current.workshopId || 'demo_workshop');
         await pool.query(
-          `UPDATE tickets SET ${updates.join(', ')} WHERE client = $${paramIndex}`,
+          `UPDATE tickets SET ${updates.join(', ')} WHERE client = $${paramIndex} AND workshopId = $${paramIndex + 1}`,
           vals
         );
       }
@@ -564,13 +603,14 @@ export async function updateTicket(id, fields) {
   const index = data.tickets.findIndex(t => t.id === id);
   if (index > -1) {
     const current = data.tickets[index];
+    if (workshopId && current.workshopId !== workshopId) return null;
     const merged = { ...current, ...fields };
     data.tickets[index] = merged;
     
-    // CRM Sync for local json fallback:
+    // CRM Sync for local json fallback within the same workshop:
     if (fields.email !== undefined || fields.clientPhoto !== undefined || fields.vehiclePhoto !== undefined || fields.phone !== undefined) {
       data.tickets.forEach(t => {
-        if (t.client === current.client) {
+        if (t.client === current.client && t.workshopId === current.workshopId) {
           if (fields.email !== undefined) t.email = fields.email;
           if (fields.clientPhoto !== undefined) t.clientPhoto = fields.clientPhoto;
           if (fields.vehiclePhoto !== undefined) t.vehiclePhoto = fields.vehiclePhoto;
@@ -585,30 +625,30 @@ export async function updateTicket(id, fields) {
   return null;
 }
 
-export async function deleteTicket(id) {
+export async function deleteTicket(id, workshopId) {
   if (pool) {
     await initializePostgres();
     try {
-      await pool.query('DELETE FROM tickets WHERE id = $1', [id]);
-      await pool.query('DELETE FROM parts WHERE ticketId = $1', [id]);
+      await pool.query('DELETE FROM tickets WHERE id = $1 AND workshopId = $2', [id, workshopId]);
+      await pool.query('DELETE FROM parts WHERE ticketId = $1 AND workshopId = $2', [id, workshopId]);
       return true;
     } catch (err) {
       console.error('[DB] deleteTicket error:', err.message);
     }
   }
   const data = readLocalJson();
-  data.tickets = data.tickets.filter(t => t.id !== id);
-  data.parts = data.parts.filter(p => p.ticketId !== id);
+  data.tickets = (data.tickets || []).filter(t => !(t.id === id && t.workshopId === workshopId));
+  data.parts = (data.parts || []).filter(p => !(p.ticketId === id && p.workshopId === workshopId));
   writeLocalJson(data);
   return true;
 }
 
 // ─── Parts Operations ──────────────────────────────────────────────
-export async function getParts() {
+export async function getParts(workshopId) {
   if (pool) {
     await initializePostgres();
     try {
-      const res = await pool.query('SELECT * FROM parts');
+      const res = await pool.query('SELECT * FROM parts WHERE workshopId = $1', [workshopId]);
       return res.rows.map(p => ({
         ...p,
         qty: parseInt(p.qty) || 0,
@@ -620,22 +660,42 @@ export async function getParts() {
       console.error('[DB] getParts error:', err.message);
     }
   }
-  return readLocalJson().parts;
+  return (readLocalJson().parts || []).filter(p => p.workshopId === workshopId);
 }
 
-export async function addPart(p) {
+export async function getPartsByTicket(ticketId) {
+  if (pool) {
+    await initializePostgres();
+    try {
+      const res = await pool.query('SELECT * FROM parts WHERE ticketId = $1', [ticketId]);
+      return res.rows.map(p => ({
+        ...p,
+        qty: parseInt(p.qty) || 0,
+        cost: parseFloat(p.cost) || 0,
+        salePrice: parseFloat(p.saleprice) || 0,
+        qcChecked: p.qcchecked ? JSON.parse(p.qcchecked) : { visual: false, packaging: false, compatibility: false, functional: false }
+      }));
+    } catch (err) {
+      console.error('[DB] getPartsByTicket error:', err.message);
+    }
+  }
+  return (readLocalJson().parts || []).filter(p => p.ticketId === ticketId);
+}
+
+export async function addPart(p, workshopId) {
+  p.workshopId = workshopId;
   if (pool) {
     await initializePostgres();
     try {
       await pool.query(
         `INSERT INTO parts (
           id, name, brand, qty, vehicleCompatibility, ticketId, status, qcNotes, photo,
-          qcChecked, inspectedBy, inspectedAt, cost, salePrice
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          qcChecked, inspectedBy, inspectedAt, cost, salePrice, workshopId
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
         [
           p.id, p.name, p.brand, p.qty, p.vehicleCompatibility, p.ticketId, p.status,
           p.qcNotes, p.photo, JSON.stringify(p.qcChecked), p.inspectedBy, p.inspectedAt,
-          p.cost, p.salePrice
+          p.cost, p.salePrice, p.workshopId
         ]
       );
       return p;
@@ -649,11 +709,11 @@ export async function addPart(p) {
   return p;
 }
 
-export async function updatePart(id, fields) {
+export async function updatePart(id, fields, workshopId) {
   if (pool) {
     await initializePostgres();
     try {
-      const res = await pool.query('SELECT * FROM parts WHERE id = $1', [id]);
+      const res = await pool.query('SELECT * FROM parts WHERE id = $1 AND workshopId = $2', [id, workshopId]);
       if (res.rows.length === 0) return null;
       const current = {
         ...res.rows[0],
@@ -669,11 +729,11 @@ export async function updatePart(id, fields) {
         `UPDATE parts SET 
           name = $1, brand = $2, qty = $3, vehicleCompatibility = $4, ticketId = $5, status = $6,
           qcNotes = $7, photo = $8, qcChecked = $9, inspectedBy = $10, inspectedAt = $11, cost = $12, salePrice = $13
-         WHERE id = $14`,
+         WHERE id = $14 AND workshopId = $15`,
         [
           merged.name, merged.brand, merged.qty, merged.vehicleCompatibility, merged.ticketId, merged.status,
           merged.qcNotes, merged.photo, JSON.stringify(merged.qcChecked), merged.inspectedBy, merged.inspectedAt,
-          merged.cost, merged.salePrice, id
+          merged.cost, merged.salePrice, id, workshopId
         ]
       );
       return merged;
@@ -683,7 +743,7 @@ export async function updatePart(id, fields) {
   }
   
   const data = readLocalJson();
-  const index = data.parts.findIndex(p => p.id === id);
+  const index = data.parts.findIndex(p => p.id === id && p.workshopId === workshopId);
   if (index > -1) {
     data.parts[index] = { ...data.parts[index], ...fields };
     writeLocalJson(data);
@@ -692,46 +752,54 @@ export async function updatePart(id, fields) {
   return null;
 }
 
-export async function deletePart(id) {
+export async function deletePart(id, workshopId) {
   if (pool) {
     await initializePostgres();
     try {
-      await pool.query('DELETE FROM parts WHERE id = $1', [id]);
+      await pool.query('DELETE FROM parts WHERE id = $1 AND workshopId = $2', [id, workshopId]);
       return true;
     } catch (err) {
       console.error('[DB] deletePart error:', err.message);
     }
   }
   const data = readLocalJson();
-  data.parts = data.parts.filter(p => p.id !== id);
+  data.parts = data.parts.filter(p => !(p.id === id && p.workshopId === workshopId));
   writeLocalJson(data);
   return true;
 }
 
 // ─── Settings Operations ───────────────────────────────────────────
-export async function getSettings() {
+export async function getSettings(workshopId = 'demo_workshop') {
+  const settingsKey = `settings_${workshopId || 'demo_workshop'}`;
   if (pool) {
     await initializePostgres();
     try {
-      const res = await pool.query('SELECT value FROM settings WHERE key = $1', ['tallerpro_settings']);
+      const res = await pool.query('SELECT value FROM settings WHERE key = $1', [settingsKey]);
       if (res.rows.length > 0) {
         return JSON.parse(res.rows[0].value);
+      }
+      // Fallback settings if not found
+      const fallbackRes = await pool.query('SELECT value FROM settings WHERE key = $1', ['settings_demo_workshop']);
+      if (fallbackRes.rows.length > 0) {
+        return JSON.parse(fallbackRes.rows[0].value);
       }
     } catch (err) {
       console.error('[DB] getSettings error:', err.message);
     }
   }
-  return readLocalJson().settings;
+  const localSettings = readLocalJson().settings || {};
+  return localSettings[workshopId] || localSettings['demo_workshop'] || defaultSettings;
 }
 
-export async function saveSettings(settings) {
+export async function saveSettings(settings, workshopId = 'demo_workshop') {
+  const settingsKey = `settings_${workshopId || 'demo_workshop'}`;
   if (pool) {
     await initializePostgres();
     try {
       await pool.query(
         `INSERT INTO settings (key, value) VALUES ($1, $2)
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-        ['tallerpro_settings', JSON.stringify(settings)]
+        [settingsKey, JSON.stringify(settings)]
       );
       return settings;
     } catch (err) {
@@ -740,7 +808,12 @@ export async function saveSettings(settings) {
   }
   
   const data = readLocalJson();
-  data.settings = settings;
+  if (!data.settings || typeof data.settings.name === 'string') {
+    data.settings = {
+      demo_workshop: data.settings && data.settings.name ? data.settings : defaultSettings
+    };
+  }
+  data.settings[workshopId] = settings;
   writeLocalJson(data);
   return settings;
 }
@@ -751,7 +824,7 @@ export async function getUsers() {
   if (pool) {
     await initializePostgres();
     try {
-      const res = await pool.query('SELECT id, name, email, picture, role FROM users');
+      const res = await pool.query('SELECT id, name, email, picture, role, workshopId FROM users');
       return res.rows;
     } catch (err) {
       console.error('[DB] getUsers error:', err.message);
@@ -765,7 +838,7 @@ export async function getUserByEmail(email) {
   if (pool) {
     await initializePostgres();
     try {
-      const res = await pool.query('SELECT id, name, email, picture, role FROM users WHERE email = $1', [email]);
+      const res = await pool.query('SELECT id, name, email, picture, role, workshopId FROM users WHERE email = $1', [email]);
       if (res.rows.length === 0) return null;
       return res.rows[0];
     } catch (err) {
@@ -796,12 +869,13 @@ export async function getUserByEmailWithPassword(email) {
 }
 
 export async function addUser(u) {
+  u.workshopId = u.workshopId || u.id;
   if (pool) {
     await initializePostgres();
     try {
       await pool.query(
-        `INSERT INTO users (id, name, email, password, picture, role) VALUES ($1, $2, $3, $4, $5, $6)`,
-        [u.id, u.name, u.email, u.password, u.picture, u.role]
+        `INSERT INTO users (id, name, email, password, picture, role, workshopId) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [u.id, u.name, u.email, u.password, u.picture, u.role, u.workshopId]
       );
       const { password, ...safe } = u;
       return safe;

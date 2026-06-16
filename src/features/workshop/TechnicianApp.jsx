@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Image as ImageIcon, Play, Pause, Timer, LogOut } from 'lucide-react';
-import { getTickets, addEventToTicket, getTicketEvents, updateTimeLogs } from '../../services/api';
+import { Camera, CheckCircle2, ChevronLeft, QrCode, Home, ArrowRight, MessageSquare, Play, Pause, Timer, LogOut } from 'lucide-react';
+import { getTickets, addEventToTicket, updateTimeLogs } from '../../services/api';
 import { generateWhatsAppLink } from '../../services/notifications';
 import { compressImage } from '../../skills/imageUtils';
 import { useAuth } from '../../skills/security';
@@ -135,7 +135,7 @@ export default function TechnicianApp() {
               alert('Formato de código QR inválido. Escanea un Pase de Cliente TallerPro.');
             }
           }
-        }, (error) => {
+        }, (_error) => {
           // Ignore scanning logs
         });
         

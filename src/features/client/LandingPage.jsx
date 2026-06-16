@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Zap, ArrowRight, Lock, CheckCircle2, Camera, MessageSquare, Smartphone, X, Upload } from 'lucide-react';
+import { ShieldCheck, Zap, ArrowRight, CheckCircle2, Camera, MessageSquare, X, Upload } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../skills/security';
 import Logo from '../../components/Logo';
@@ -103,7 +103,7 @@ export default function LandingPage() {
     }
     
     try {
-      const registeredUser = await registerUser({
+      await registerUser({
         name: regName,
         email: regEmail,
         password: regPassword,
@@ -243,7 +243,7 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8 animate-fade-in-up">
               <h2 className="text-4xl md:text-5xl font-black tracking-tight">
-                Operación <span className="text-accent-primary">"Foto y Click"</span>
+                Operación <span className="text-accent-primary">&ldquo;Foto y Click&rdquo;</span>
               </h2>
               <p className="text-xl text-gray-400 leading-relaxed">
                 Tus técnicos no tienen tiempo para llenar formularios extensos. Nuestra app móvil les permite documentar el estado del vehículo en segundos.
@@ -302,7 +302,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-2xl font-bold mb-4">Protección Legal Total</h3>
             <p className="text-gray-400 leading-relaxed text-lg">
-              El registro fotográfico obligatorio de recepción sella el estado inicial del vehículo. Se acabó el "ese rayón no lo traía".
+              El registro fotográfico obligatorio de recepción sella el estado inicial del vehículo. Se acabó el &ldquo;ese rayón no lo traía&rdquo;.
             </p>
           </div>
           <div className="card-morphism group">

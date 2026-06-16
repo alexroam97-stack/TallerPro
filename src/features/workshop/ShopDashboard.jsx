@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical, Camera, Mail, Phone, Calendar, DollarSign, ArrowRight } from 'lucide-react';
+import { Plus, Users, Settings, Home, Car, Link as LinkIcon, X, LogOut, QrCode, Receipt, Check, TrendingUp, Package, MessageSquare, Eye, Edit, Menu, ChevronLeft, Trash2, MoreVertical, Camera, Mail, Phone } from 'lucide-react';
 import { getTickets, addTicket, saveSignature, getParts, addPart, updatePart, updateBudgetStatus, addEventToTicket, deleteTicket, updateTimeLogs, updateTicket } from '../../services/api';
 import Logo from '../../components/Logo';
 import SignatureCanvas from '../../components/SignatureCanvas';
@@ -183,7 +183,7 @@ export default function ShopDashboard() {
               alert('Formato de código QR inválido. Escanea un Pase de Cliente TallerPro.');
             }
           }
-        }, (error) => {
+        }, (_error) => {
           // Ignore scanning logs
         });
         
@@ -628,7 +628,7 @@ export default function ShopDashboard() {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black text-accent-primary uppercase tracking-wider block">3. Eliminar Vehículos</span>
-                <p>Haz clic en el botón rojo de <strong>ELIMINAR</strong> en la tabla de vehículos o dentro del modal de <strong>DETALLES</strong>. La orden y todas sus piezas vinculadas en "Autopartes" se borrarán del sistema.</p>
+                <p>Haz clic en el botón rojo de <strong>ELIMINAR</strong> en la tabla de vehículos o dentro del modal de <strong>DETALLES</strong>. La orden y todas sus piezas vinculadas en &ldquo;Autopartes&rdquo; se borrarán del sistema.</p>
               </div>
             </div>
           </div>

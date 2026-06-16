@@ -7,7 +7,6 @@ import WhatsAppButton from '../../components/WhatsAppButton';
 import InteractiveVehicleSVG from '../workshop/InteractiveVehicleSVG';
 import SignatureCanvas from '../../components/SignatureCanvas';
 import { useAuth } from '../../skills/security';
-import { generateWhatsAppLink } from '../../services/notifications';
 
 export default function ClientTracker() {
   const { ticketId } = useParams();
@@ -34,17 +33,19 @@ export default function ClientTracker() {
   const [verifyLockUntil, setVerifyLockUntil] = useState(0);
 
   useEffect(() => {
-    getSettings()
-      .then(parsed => {
-        if (parsed) {
-          setShopInfo(prev => ({ ...prev, ...parsed }));
-          if (parsed.phone) {
-            setShopPhone(parsed.phone);
+    if (ticketId) {
+      getSettings(ticketId)
+        .then(parsed => {
+          if (parsed) {
+            setShopInfo(prev => ({ ...prev, ...parsed }));
+            if (parsed.phone) {
+              setShopPhone(parsed.phone);
+            }
           }
-        }
-      })
-      .catch(console.error);
-  }, []);
+        })
+        .catch(console.error);
+    }
+  }, [ticketId]);
 
   useEffect(() => {
     if (ticketId) {
@@ -61,9 +62,9 @@ export default function ClientTracker() {
           setLoading(false);
         });
         
-      getParts()
-        .then(allParts => {
-          setParts(allParts.filter(p => p.ticketId === ticketId));
+      getParts(ticketId)
+        .then(linkedParts => {
+          setParts(linkedParts || []);
         })
         .catch(console.error);
     }
@@ -154,7 +155,6 @@ export default function ClientTracker() {
   const events = baseEvents.map((evt, index) => {
     const isCompleted = currentEvents.includes(evt.id);
     const isActive = !isCompleted && currentEvents.length === index;
-    const isPending = !isCompleted && !isActive;
 
     // Get real photo from ticket if available, else use fallback
     const realPhoto = ticket?.photos?.[evt.id];
@@ -171,7 +171,7 @@ export default function ClientTracker() {
       <div className="relative min-h-screen flex flex-col items-center justify-center text-white overflow-hidden">
         <div className="bg-glow" />
         <div className="flex flex-col items-center gap-4">
-          <Logo size="md" className="animate-pulse" />
+          <Logo size="md" className="animate-pulse" ticketId={ticketId} />
           <div className="w-10 h-10 border-4 border-accent-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-2">Cargando información del vehículo...</p>
         </div>
@@ -184,7 +184,7 @@ export default function ClientTracker() {
       <div className="relative min-h-screen flex flex-col items-center justify-center text-white overflow-hidden">
         <div className="bg-glow" />
         <div className="card-morphism max-w-md text-center p-8 space-y-6">
-          <Logo size="md" />
+          <Logo size="md" ticketId={ticketId} />
           <h2 className="text-2xl font-black text-red-400">Orden no encontrada</h2>
           <p className="text-gray-400 text-sm">El ticket ID <strong>{ticketId}</strong> no coincide con ninguna orden en nuestro sistema.</p>
           <button onClick={() => navigate('/')} className="btn-premium w-full py-3">Volver al Inicio</button>
@@ -199,7 +199,7 @@ export default function ClientTracker() {
         <div className="bg-glow" />
         <main className="w-full max-w-md p-4 relative z-10">
           <div className="text-center mb-8">
-            <Logo size="md" />
+            <Logo size="md" ticketId={ticketId} />
           </div>
           <div className="liquid-glass p-8 md:p-10 rounded-[2.5rem] shadow-ui border-white/20 text-center space-y-6">
             <div className="inline-block p-4 rounded-full bg-accent-primary/10">
@@ -260,7 +260,7 @@ export default function ClientTracker() {
       <div className="bg-glow" />
 
       <header className="container mx-auto px-6 py-8 flex justify-between items-center relative z-10 animate-fade-in">
-        <Logo size="sm" />
+        <Logo size="sm" ticketId={ticketId} />
         <button 
           onClick={() => navigate(user ? '/dashboard' : '/')}
           className="flex items-center gap-2 text-gray-400 font-bold hover:text-white transition-colors"
@@ -440,7 +440,7 @@ export default function ClientTracker() {
                         {part.qcNotes && (
                           <div className="p-3 bg-white/5 rounded-xl text-xs text-gray-300 border border-white/5 leading-relaxed font-medium">
                             <p className="text-[9px] font-black text-accent-primary uppercase tracking-wider mb-1">Notas del Inspector</p>
-                            "{part.qcNotes}"
+                            &ldquo;{part.qcNotes}&rdquo;
                           </div>
                         )}
 

@@ -173,8 +173,9 @@ export const updateTimeLogs = async (ticketId, stageName, elapsedSeconds) => {
   });
 };
 
-export const getParts = async () => {
-  return apiFetch('/api/parts');
+export const getParts = async (ticketId = null) => {
+  const url = ticketId ? `/api/parts?ticketId=${ticketId}` : '/api/parts';
+  return apiFetch(url);
 };
 
 export const addPart = async (partData) => {
@@ -197,8 +198,9 @@ export const deletePart = async (partId) => {
   });
 };
 
-export const getSettings = async () => {
-  return apiFetch('/api/settings');
+export const getSettings = async (ticketId = null) => {
+  const url = ticketId ? `/api/settings?ticketId=${ticketId}` : '/api/settings';
+  return apiFetch(url);
 };
 
 export const saveSettings = async (settings) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings } from '../services/api';
 
-export default function Logo({ size = "md", className = "" }) {
+export default function Logo({ size = "md", className = "", ticketId = null }) {
   const [settings, setSettings] = useState({
     name: 'TallerPro',
     logo: ''
@@ -9,7 +9,7 @@ export default function Logo({ size = "md", className = "" }) {
 
   useEffect(() => {
     let active = true;
-    getSettings()
+    getSettings(ticketId)
       .then(data => {
         if (active && data) {
           setSettings(data);
@@ -18,7 +18,7 @@ export default function Logo({ size = "md", className = "" }) {
       .catch(console.error);
 
     const handleUpdate = () => {
-      getSettings()
+      getSettings(ticketId)
         .then(data => {
           if (active && data) {
             setSettings(data);
@@ -32,7 +32,7 @@ export default function Logo({ size = "md", className = "" }) {
       active = false;
       window.removeEventListener('storage', handleUpdate);
     };
-  }, []);
+  }, [ticketId]);
 
   const sizes = {
     sm: "h-8",

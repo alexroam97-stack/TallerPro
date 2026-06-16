@@ -79,7 +79,7 @@ export default function ScanRedirect() {
       <div className="bg-glow" />
       
       <header className="container mx-auto px-6 py-8 flex justify-center items-center relative z-10 animate-fade-in">
-        <Logo size="sm" />
+        <Logo size="sm" ticketId={ticketId} />
       </header>
 
       <main className="flex-1 flex items-center justify-center relative z-10 pb-16">

@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         if (!auth) {
           return res.status(403).json({ error: 'Acceso denegado' });
         }
-        const tickets = await getTickets();
+        const tickets = await getTickets(auth.workshopId);
         return res.status(200).json(tickets);
       }
     }
@@ -59,7 +59,8 @@ export default async function handler(req, res) {
         timeLogs: {},
         inventoryChecklist: {},
         createdAt: new Date().toISOString(),
-        closedAt: null
+        closedAt: null,
+        workshopId: auth.workshopId
       };
 
       const result = await addTicket(newTicket);
@@ -75,6 +76,7 @@ export default async function handler(req, res) {
       }
 
       const auth = checkAuth(req, ['admin', 'mechanic']);
+      let workshopId = null;
       if (!auth) {
         // Unauthenticated clients may ONLY update budgetStatus or signatureDelivery
         const allowedKeys = ['budgetStatus', 'signatureDelivery'];
@@ -83,9 +85,11 @@ export default async function handler(req, res) {
         if (!isAllowed) {
           return res.status(403).json({ error: 'Acceso denegado' });
         }
+      } else {
+        workshopId = auth.workshopId;
       }
 
-      const updated = await updateTicket(targetId, fields);
+      const updated = await updateTicket(targetId, fields, workshopId);
       if (!updated) {
         return res.status(404).json({ error: 'Ticket no encontrado' });
       }
@@ -102,7 +106,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'El ID del ticket es requerido para eliminar' });
       }
 
-      const success = await deleteTicket(id);
+      const success = await deleteTicket(id, auth.workshopId);
       return res.status(200).json({ success });
     }
 

@@ -1,19 +1,30 @@
-import { getParts, addPart, updatePart, deletePart, checkAuth, generateSecureId } from './db.js';
+import { getParts, getPartsByTicket, addPart, updatePart, deletePart, checkAuth, generateSecureId } from './db.js';
 
 export default async function handler(req, res) {
-  const { id } = req.query;
+  const { id, ticketId } = req.query;
 
   try {
     if (req.method === 'GET') {
-      const parts = await getParts();
-      if (id) {
-        const part = parts.find(p => p.id === id);
-        if (!part) {
-          return res.status(404).json({ error: 'Repuesto no encontrado' });
+      if (ticketId) {
+        // Public lookup filtered by ticketId
+        const parts = await getPartsByTicket(ticketId);
+        return res.status(200).json(parts);
+      } else {
+        // Listing all parts requires staff auth
+        const auth = checkAuth(req, ['admin', 'mechanic']);
+        if (!auth) {
+          return res.status(403).json({ error: 'Acceso denegado' });
         }
-        return res.status(200).json(part);
+        const parts = await getParts(auth.workshopId);
+        if (id) {
+          const part = parts.find(p => p.id === id);
+          if (!part) {
+            return res.status(404).json({ error: 'Repuesto no encontrado' });
+          }
+          return res.status(200).json(part);
+        }
+        return res.status(200).json(parts);
       }
-      return res.status(200).json(parts);
     }
 
     // Write operations require admin or mechanic roles
@@ -46,7 +57,7 @@ export default async function handler(req, res) {
         salePrice: parseFloat(partData.salePrice) || 0
       };
 
-      const result = await addPart(newPart);
+      const result = await addPart(newPart, auth.workshopId);
       return res.status(201).json(result);
     }
 
@@ -58,9 +69,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'El ID de la refacción es requerido para actualizar' });
       }
 
-      const updated = await updatePart(targetId, fields);
+      const updated = await updatePart(targetId, fields, auth.workshopId);
       if (!updated) {
-        return res.status(404).json({ error: 'Refacción no encontrada' });
+        return res.status(404).json({ error: 'Refacción no encontrada o acceso denegado' });
       }
       return res.status(200).json(updated);
     }
@@ -70,7 +81,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'El ID de la refacción es requerido para eliminar' });
       }
 
-      const success = await deletePart(id);
+      const success = await deletePart(id, auth.workshopId);
       return res.status(200).json({ success });
     }
 
