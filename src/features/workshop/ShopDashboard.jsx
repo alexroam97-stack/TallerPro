@@ -988,13 +988,13 @@ export default function ShopDashboard() {
                     {/* Metrics row */}
                     <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-505 block">Valor de Vida (LTV)</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Valor de Vida (LTV)</span>
                         <div className="text-xl font-black text-accent-primary">
-                          ${sc.tickets.reduce((sum, t) => sum + (t.items || []).reduce((itemSum, item) => itemSum + ((item.qty || 1) * (item.unitPrice || 0)), 0), 0).toLocaleString()}
+                          ${sc.tickets.reduce((sum, t) => sum + (t.items || []).reduce((itemSum, item) => itemSum + ((item.qty || 1) * (item.price || item.unitPrice || 0)), 0), 0).toLocaleString()}
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-505 block">Órdenes Activas</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Órdenes Activas</span>
                         <div className="text-xl font-black text-white">
                           {sc.tickets.filter(t => !t.closedAt && t.status !== 'Entrega').length}
                         </div>
@@ -1043,7 +1043,7 @@ export default function ShopDashboard() {
                     <div className="flex flex-wrap gap-3">
                       {sc.latest.phone && (
                         <a
-                          href={generateWhatsAppLink(sc.latest.phone, `Hola ${sc.name}, le contactamos desde el taller.`)}
+                          href={`https://wa.me/${sc.latest.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${sc.name}, le contactamos desde el taller.`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn-secondary flex items-center gap-2 text-sm !py-2 !border-green-500/40 !text-green-400 hover:!bg-green-500/10"
@@ -1122,7 +1122,7 @@ export default function ShopDashboard() {
                                 {t.status}
                               </span>
                               {(() => {
-                                const subtotal = (t.items || []).reduce((sum, item) => sum + ((item.qty || 1) * (item.unitPrice || 0)), 0);
+                                const subtotal = (t.items || []).reduce((sum, item) => sum + ((item.qty || 1) * (item.price || item.unitPrice || 0)), 0);
                                 return subtotal > 0 ? (
                                   <p className="text-xs font-bold text-gray-400 mt-1">${subtotal.toLocaleString()}</p>
                                 ) : null;

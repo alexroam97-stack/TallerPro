@@ -1,14 +1,17 @@
 export const generateWhatsAppLink = (phone, clientName, vehicle, stageName, ticketId) => {
   const baseUrl = 'https://wa.me/';
-  const cleanPhone = phone.replace(/\D/g, '');
+  const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
   
   if (!cleanPhone) return null;
 
-  const trackerUrl = `${window.location.origin}/tracker/${ticketId}`;
+  const trackerUrl = `${window.location.origin}/tracker/${ticketId || ''}`;
+  const stage = stageName || '';
+  const vehicleName = vehicle || '';
+  const client = clientName || '';
   
-  const message = `Hola ${clientName}! 👋 
+  const message = `Hola ${client}! 👋 
   
-Tu vehículo *${vehicle}* ha avanzado a la etapa de: *${stageName.toUpperCase()}*.
+Tu vehículo *${vehicleName}* ha avanzado a la etapa de: *${stage.toUpperCase()}*.
 
 Puedes seguir el progreso en tiempo real aquí:
 ${trackerUrl}
