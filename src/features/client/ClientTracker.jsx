@@ -584,6 +584,65 @@ export default function ClientTracker() {
             </div>
           </div>
         )}
+        {/* Sección de Factura CFDI */}
+        {ticket?.billingInfo?.invoice && (
+          <div className="mt-16 animate-fade-in-up [animation-delay:600ms]">
+            <div className="flex items-center gap-3 mb-6">
+              <Receipt className="text-accent-primary" size={28} />
+              <h2 className="text-2xl font-black tracking-tight">Factura Digital (CFDI 4.0)</h2>
+            </div>
+            
+            <div className="card-morphism p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-2xl bg-accent-success/10 border border-accent-success/20 text-accent-success shrink-0">
+                  <Check size={28} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">Comprobante emitido con éxito</h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Tu comprobante fiscal digital ha sido timbrado ante el SAT. Puedes descargar los archivos oficiales a continuación.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-[10px] font-medium grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-500 font-bold uppercase">Folio Fiscal (UUID)</p>
+                  <p className="text-gray-300 font-mono font-bold mt-0.5 select-all truncate">{ticket.billingInfo.invoice.uuid}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 font-bold uppercase">Fecha de Expedición</p>
+                  <p className="text-gray-300 font-bold mt-0.5">
+                    {new Date(ticket.billingInfo.invoice.stampedAt).toLocaleString('es-MX', {
+                      year: 'numeric', month: '2-digit', day: '2-digit',
+                      hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <a 
+                  href={ticket.billingInfo.invoice.pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-premium flex-1 py-3.5 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider text-center"
+                >
+                  <Download size={16} /> Descargar Factura (PDF)
+                </a>
+                <a 
+                  href={ticket.billingInfo.invoice.xmlUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary flex-1 py-3.5 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider text-center"
+                >
+                  <Download size={16} /> Descargar XML Fiscal
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Firmas de Conformidad */}
         <div className="mt-16 animate-fade-in-up [animation-delay:600ms]">
           <div className="flex items-center gap-3 mb-6">

@@ -209,3 +209,17 @@ export const saveSettings = async (settings) => {
     body: JSON.stringify(settings)
   });
 };
+
+export const stampInvoice = async (ticketId, billingData) => {
+  return apiFetch('/api/invoices', {
+    method: 'POST',
+    body: JSON.stringify({ id: ticketId, ...billingData })
+  });
+};
+
+export const cancelInvoice = async (ticketId) => {
+  return apiFetch(`/api/invoices?id=${ticketId}`, {
+    method: 'DELETE'
+  });
+};
+
