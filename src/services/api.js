@@ -224,10 +224,10 @@ export const cancelInvoice = async (ticketId) => {
   });
 };
 
-export const sendBudgetEmail = async (ticketId, email) => {
+export const sendBudgetEmail = async (ticketId, email, ticket = null) => {
   return apiFetch('/api/email', {
     method: 'POST',
-    body: JSON.stringify({ id: ticketId, email })
+    body: JSON.stringify({ id: ticketId, email, ticket })
   });
 };
 

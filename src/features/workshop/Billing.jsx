@@ -218,7 +218,11 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     setEmailError('');
 
     try {
-      await sendBudgetEmail(ticket.id, targetEmail);
+      await sendBudgetEmail(ticket.id, targetEmail, {
+        ...ticket,
+        items,
+        billingInfo
+      });
       setEmailStatus('sent');
       
       // Update email on the local ticket fields if changed
@@ -317,7 +321,11 @@ export default function Billing({ ticket, onClose, onUpdate }) {
 
       // Trigger automatic budget email in the background if requested and setup
       if (triggerEmail && autoSendEmail && clientEmail) {
-        sendBudgetEmail(ticket.id, clientEmail).catch(console.error);
+        sendBudgetEmail(ticket.id, clientEmail, {
+          ...ticket,
+          items: currentItems,
+          billingInfo: currentInfo
+        }).catch(console.error);
         setEmailStatus('sent');
         setTimeout(() => setEmailStatus(''), 3000);
       }
@@ -762,6 +770,7 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                     placeholder="cliente@correo.com" 
                     value={clientEmail}
                     onChange={(e) => setClientEmail(e.target.value)}
+                    onBlur={() => saveChanges(items, billingInfo)}
                   />
                 </div>
 

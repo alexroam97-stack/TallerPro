@@ -13,13 +13,22 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'ID de la orden y correo electrónico de destino son obligatorios' });
   }
 
+  let ticket = req.body.ticket;
+
   try {
-    const ticket = await getTicket(id);
     if (!ticket) {
-      console.log(`[Email API] Ticket with ID "${id}" was not found in DB.`);
+      ticket = await getTicket(id);
+      if (ticket) {
+        console.log('[Email API] Ticket found in DB:', { id: ticket.id, client: ticket.client, email: ticket.email });
+      }
+    } else {
+      console.log('[Email API] Using ticket details from request body:', { id: ticket.id, client: ticket.client, email: ticket.email });
+    }
+
+    if (!ticket) {
+      console.log(`[Email API] Ticket with ID "${id}" was not found in DB or request body.`);
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
-    console.log('[Email API] Ticket found in DB:', { id: ticket.id, client: ticket.client, email: ticket.email });
 
     // Fetch workshop details
     let settings = {
