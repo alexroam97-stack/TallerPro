@@ -124,10 +124,11 @@ export const getTicketEvents = async (ticketId) => {
   return ticket ? (ticket.events || []) : [];
 };
 
-export const updateTicketBilling = async (ticketId, { items, billingInfo }) => {
+export const updateTicketBilling = async (ticketId, { items, billingInfo, email }) => {
   const body = { id: ticketId };
   if (items) body.items = items;
   if (billingInfo) body.billingInfo = billingInfo;
+  if (email !== undefined) body.email = email;
   
   return apiFetch('/api/tickets', {
     method: 'PUT',

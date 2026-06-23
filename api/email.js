@@ -6,16 +6,20 @@ export default async function handler(req, res) {
   }
 
   const { id, email } = req.body || {};
+  console.log('[Email API] Request received:', { id, email });
 
   if (!id || !email) {
+    console.log('[Email API] Missing parameters:', { id, email });
     return res.status(400).json({ error: 'ID de la orden y correo electrónico de destino son obligatorios' });
   }
 
   try {
     const ticket = await getTicket(id);
     if (!ticket) {
+      console.log(`[Email API] Ticket with ID "${id}" was not found in DB.`);
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
+    console.log('[Email API] Ticket found in DB:', { id: ticket.id, client: ticket.client, email: ticket.email });
 
     // Fetch workshop details
     let settings = {
