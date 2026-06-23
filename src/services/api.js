@@ -223,3 +223,11 @@ export const cancelInvoice = async (ticketId) => {
   });
 };
 
+export const sendBudgetEmail = async (ticketId, email) => {
+  return apiFetch('/api/email', {
+    method: 'POST',
+    body: JSON.stringify({ id: ticketId, email })
+  });
+};
+
+

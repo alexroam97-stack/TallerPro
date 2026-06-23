@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Receipt, FileText, Calculator, Copy, Check, AlertCircle, RefreshCw } from 'lucide-react';
-import { updateTicketBilling, getSettings, stampInvoice, cancelInvoice } from '../../services/api';
+import { X, Plus, Trash2, Receipt, FileText, Calculator, Copy, Check, AlertCircle, RefreshCw, Mail, Edit } from 'lucide-react';
+import { updateTicketBilling, getSettings, stampInvoice, cancelInvoice, sendBudgetEmail } from '../../services/api';
 
 const getSuggestedSatKey = (description, type, serviceType) => {
   const desc = description.toLowerCase();
@@ -70,6 +70,16 @@ export default function Billing({ ticket, onClose, onUpdate }) {
   const [stampingError, setStampingError] = useState('');
   const [copiedUuid, setCopiedUuid] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+
+  // Editing Concept States
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemData, setEditItemData] = useState({ desc: '', type: 'Refacción', qty: 1, price: 0, satKey: '25170000' });
+
+  // Email Notification States
+  const [clientEmail, setClientEmail] = useState(ticket.email || '');
+  const [autoSendEmail, setAutoSendEmail] = useState(true);
+  const [emailStatus, setEmailStatus] = useState(''); // '', 'sending', 'sent', 'error'
+  const [emailError, setEmailError] = useState('');
 
   useEffect(() => {
     getSettings()
@@ -180,6 +190,53 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     setTimeout(() => setCopiedUuid(false), 2000);
   };
 
+  const handleSaveEditItem = () => {
+    if (!editItemData.desc || editItemData.price < 0) return;
+    const updatedItems = items.map(item => {
+      if (item.id === editingItemId) {
+        return { ...item, ...editItemData };
+      }
+      return item;
+    });
+    setItems(updatedItems);
+    setEditingItemId(null);
+    saveChanges(updatedItems, billingInfo, true);
+  };
+
+  const handleCancelEditItem = () => {
+    setEditingItemId(null);
+  };
+
+  const handleSendEmail = async (overrideEmail = null) => {
+    const targetEmail = overrideEmail || clientEmail;
+    if (!targetEmail) {
+      alert('Por favor, ingresa un correo electrónico válido para el cliente.');
+      return;
+    }
+
+    setEmailStatus('sending');
+    setEmailError('');
+
+    try {
+      await sendBudgetEmail(ticket.id, targetEmail);
+      setEmailStatus('sent');
+      
+      // Update email on the local ticket fields if changed
+      if (targetEmail !== ticket.email) {
+        // Triggers saving changes which syncs the ticket's email on the backend
+        const updatedInfo = { ...billingInfo };
+        saveChanges(items, updatedInfo);
+      }
+
+      // Auto clear sent status after 3 seconds
+      setTimeout(() => setEmailStatus(''), 3000);
+    } catch (err) {
+      console.error(err);
+      setEmailStatus('error');
+      setEmailError(err.message || 'Error al enviar presupuesto por correo.');
+    }
+  };
+
   const subtotal = items.reduce((acc, item) => acc + (item.qty * item.price), 0);
   const iva = subtotal * ((billingInfo.ivaRate || 16) / 100);
   const total = subtotal + iva;
@@ -191,7 +248,7 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     const updatedItems = [...items, itemWithId];
     setItems(updatedItems);
     setNewItem({ desc: '', qty: 1, price: 0, type: 'Refacción', satKey: '25170000' });
-    saveChanges(updatedItems, billingInfo);
+    saveChanges(updatedItems, billingInfo, true);
   };
 
   const handleApplyTemplate = (e) => {
@@ -227,7 +284,7 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     if (templateItems.length > 0) {
       const updatedItems = [...items, ...templateItems];
       setItems(updatedItems);
-      saveChanges(updatedItems, billingInfo);
+      saveChanges(updatedItems, billingInfo, true);
     }
     
     e.target.value = '';
@@ -236,7 +293,7 @@ export default function Billing({ ticket, onClose, onUpdate }) {
   const handleRemoveItem = (id) => {
     const updatedItems = items.filter(item => item.id !== id);
     setItems(updatedItems);
-    saveChanges(updatedItems, billingInfo);
+    saveChanges(updatedItems, billingInfo, true);
   };
 
   const handleBillingChange = (e) => {
@@ -244,13 +301,26 @@ export default function Billing({ ticket, onClose, onUpdate }) {
     const parsedValue = name === 'ivaRate' ? (parseInt(value) || 16) : value;
     const updatedInfo = { ...billingInfo, [name]: parsedValue };
     setBillingInfo(updatedInfo);
-    saveChanges(items, updatedInfo);
+    saveChanges(items, updatedInfo, false);
   };
 
-  const saveChanges = async (currentItems, currentInfo) => {
+  const saveChanges = async (currentItems, currentInfo, triggerEmail = false) => {
     try {
-      const updated = await updateTicketBilling(ticket.id, { items: currentItems, billingInfo: currentInfo });
+      // Sync clientEmail to the ticket's email so they are updated together
+      const emailField = clientEmail ? { email: clientEmail } : {};
+      const updated = await updateTicketBilling(ticket.id, { 
+        items: currentItems, 
+        billingInfo: currentInfo,
+        ...emailField
+      });
       if (onUpdate) onUpdate(updated);
+
+      // Trigger automatic budget email in the background if requested and setup
+      if (triggerEmail && autoSendEmail && clientEmail) {
+        sendBudgetEmail(ticket.id, clientEmail).catch(console.error);
+        setEmailStatus('sent');
+        setTimeout(() => setEmailStatus(''), 3000);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -385,23 +455,114 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                       <td colSpan="6" className="px-4 py-12 text-center text-gray-600 font-bold">No hay conceptos agregados todavía.</td>
                     </tr>
                   ) : (
-                    items.map(item => (
-                      <tr key={item.id} className="group hover:bg-white/5 transition-colors">
-                        <td className="px-4 py-4">
-                          <div className="font-bold">{item.desc}</div>
-                          <div className="text-[10px] text-gray-500">{item.type.toUpperCase()}</div>
-                        </td>
-                        <td className="px-4 py-4 text-xs font-mono">{item.satKey}</td>
-                        <td className="px-4 py-4 text-center">{item.qty}</td>
-                        <td className="px-4 py-4 text-right">${item.price.toLocaleString()}</td>
-                        <td className="px-4 py-4 text-right font-bold text-accent-primary">${(item.qty * item.price).toLocaleString()}</td>
-                        <td className="px-4 py-4 text-right">
-                          <button onClick={() => handleRemoveItem(item.id)} className="text-gray-600 hover:text-red-400 transition-colors">
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    items.map(item => {
+                      const isEditing = editingItemId === item.id;
+                      return (
+                        <tr key={item.id} className="group hover:bg-white/5 transition-colors">
+                          {isEditing ? (
+                            <>
+                              <td className="px-4 py-3">
+                                <div className="space-y-1.5">
+                                  <input 
+                                    type="text" 
+                                    value={editItemData.desc} 
+                                    onChange={e => {
+                                      const newDesc = e.target.value;
+                                      const suggested = getSuggestedSatKey(newDesc, editItemData.type, ticket.serviceType);
+                                      setEditItemData({ ...editItemData, desc: newDesc, satKey: suggested });
+                                    }}
+                                    className="w-full bg-slate-900 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-accent-primary"
+                                  />
+                                  <select 
+                                    value={editItemData.type}
+                                    onChange={e => {
+                                      const newType = e.target.value;
+                                      const suggested = getSuggestedSatKey(editItemData.desc, newType, ticket.serviceType);
+                                      setEditItemData({ ...editItemData, type: newType, satKey: suggested });
+                                    }}
+                                    className="w-full bg-slate-900 border border-white/10 rounded-lg p-1.5 text-[10px] text-white focus:outline-none focus:border-accent-primary"
+                                  >
+                                    <option value="Refacción">Refacción</option>
+                                    <option value="Mano de Obra">Mano de Obra</option>
+                                  </select>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <input 
+                                  type="text" 
+                                  value={editItemData.satKey} 
+                                  onChange={e => setEditItemData({ ...editItemData, satKey: e.target.value })}
+                                  className="w-full bg-slate-900 border border-white/10 rounded-lg p-2 text-xs text-white font-mono focus:outline-none focus:border-accent-primary"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <input 
+                                  type="number" 
+                                  value={editItemData.qty} 
+                                  onChange={e => setEditItemData({ ...editItemData, qty: parseInt(e.target.value) || 0 })}
+                                  className="w-16 bg-slate-900 border border-white/10 rounded-lg p-2 text-xs text-white text-center focus:outline-none focus:border-accent-primary"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <input 
+                                  type="number" 
+                                  value={editItemData.price} 
+                                  onChange={e => setEditItemData({ ...editItemData, price: parseFloat(e.target.value) || 0 })}
+                                  className="w-24 bg-slate-900 border border-white/10 rounded-lg p-2 text-xs text-white text-right focus:outline-none focus:border-accent-primary"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold text-accent-primary">
+                                ${(editItemData.qty * editItemData.price).toLocaleString('es-MX')}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex gap-2 justify-end">
+                                  <button onClick={handleSaveEditItem} className="text-accent-success hover:text-white transition-colors" title="Guardar cambios">
+                                    <Check size={18} />
+                                  </button>
+                                  <button onClick={handleCancelEditItem} className="text-gray-400 hover:text-white transition-colors" title="Cancelar edición">
+                                    <X size={18} />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-4 py-4">
+                                <div className="font-bold">{item.desc}</div>
+                                <div className="text-[10px] text-gray-500">{item.type.toUpperCase()}</div>
+                              </td>
+                              <td className="px-4 py-4 text-xs font-mono">{item.satKey}</td>
+                              <td className="px-4 py-4 text-center">{item.qty}</td>
+                              <td className="px-4 py-4 text-right">${item.price.toLocaleString('es-MX')}</td>
+                              <td className="px-4 py-4 text-right font-bold text-accent-primary">${(item.qty * item.price).toLocaleString('es-MX')}</td>
+                              <td className="px-4 py-4 text-right">
+                                <div className="flex gap-3 justify-end items-center opacity-70 group-hover:opacity-100 transition-opacity">
+                                  <button 
+                                    onClick={() => {
+                                      setEditingItemId(item.id);
+                                      setEditItemData({ desc: item.desc, type: item.type, qty: item.qty, price: item.price, satKey: item.satKey });
+                                    }} 
+                                    disabled={!!billingInfo.invoice}
+                                    className="text-gray-500 hover:text-accent-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                    title="Editar concepto"
+                                  >
+                                    <Edit size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleRemoveItem(item.id)} 
+                                    disabled={!!billingInfo.invoice}
+                                    className="text-gray-500 hover:text-red-400 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                    title="Eliminar concepto"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -583,6 +744,67 @@ export default function Billing({ ticket, onClose, onUpdate }) {
                   TIMBRAR FACTURA (SANDBOX)
                 </button>
               )}
+            </div>
+
+            {/* Correo Notifications Card */}
+            <div className="card-morphism !bg-white/5 p-6 space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2 mb-2 text-white">
+                <Mail size={20} className="text-accent-primary" />
+                Notificaciones por Correo
+              </h3>
+              
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-500 ml-1 uppercase">Correo del Cliente</label>
+                  <input 
+                    type="email" 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-accent-primary transition-colors text-sm"
+                    placeholder="cliente@correo.com" 
+                    value={clientEmail}
+                    onChange={(e) => setClientEmail(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 py-1">
+                  <input 
+                    id="auto-send-checkbox"
+                    type="checkbox"
+                    checked={autoSendEmail}
+                    onChange={(e) => setAutoSendEmail(e.target.checked)}
+                    className="w-4 h-4 bg-slate-900 border border-white/10 rounded focus:ring-accent-primary focus:ring-opacity-50 text-accent-primary cursor-pointer"
+                  />
+                  <label htmlFor="auto-send-checkbox" className="text-xs text-gray-400 font-bold cursor-pointer select-none">
+                    Enviar presupuesto automáticamente al guardar
+                  </label>
+                </div>
+
+                {emailStatus === 'sent' && (
+                  <div className="p-3 rounded-xl bg-accent-success/10 border border-accent-success/20 text-xs text-accent-success font-bold flex items-center gap-2 animate-fade-in">
+                    <Check size={16} /> Presupuesto enviado con éxito
+                  </div>
+                )}
+
+                {emailStatus === 'error' && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-bold flex items-start gap-2 animate-fade-in leading-relaxed">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                    <div>{emailError}</div>
+                  </div>
+                )}
+
+                <button 
+                  type="button"
+                  onClick={() => handleSendEmail()}
+                  disabled={emailStatus === 'sending' || !clientEmail}
+                  className="w-full btn-secondary py-3 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider disabled:opacity-50"
+                >
+                  {emailStatus === 'sending' ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <Mail size={14} />
+                  )}
+                  Enviar por Correo Ahora
+                </button>
+              </div>
             </div>
           </div>
         </div>
