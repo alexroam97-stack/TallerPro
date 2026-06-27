@@ -1350,80 +1350,41 @@ export default function ShopDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 ml-1 uppercase">Foto del Cliente</label>
-                    <div 
-                      onClick={() => !isClientPhotoCompressing && document.getElementById('new-client-photo-input').click()}
-                      className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden bg-black/30 hover:bg-black/50 ${newClientPhoto ? 'border-accent-primary border-solid' : 'border-white/20'}`}
-                    >
-                      {newClientPhoto ? (
-                        <img src={newClientPhoto} alt="Foto Cliente" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="text-center p-2 flex flex-col items-center gap-1">
-                          <Camera size={20} className="text-gray-500" />
-                          <span className="text-[9px] font-black text-gray-500 uppercase">{isClientPhotoCompressing ? 'Procesando...' : 'Subir Foto'}</span>
-                        </div>
-                      )}
-                    </div>
-                    <input 
-                      id="new-client-photo-input"
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        setIsClientPhotoCompressing(true);
-                        try {
-                          const compressed = await compressImage(file, 400, 0.8);
-                          setNewClientPhoto(compressed);
-                        } catch (err) {
-                          console.error(err);
-                          alert('Error al comprimir imagen');
-                        } finally {
-                          setIsClientPhotoCompressing(false);
-                        }
-                      }}
-                    />
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 ml-1 uppercase">Foto del Vehículo</label>
+                  <div 
+                    onClick={() => !isVehiclePhotoCompressing && document.getElementById('new-vehicle-photo-input').click()}
+                    className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden bg-black/30 hover:bg-black/50 ${newVehiclePhoto ? 'border-accent-primary border-solid' : 'border-white/20'}`}
+                  >
+                    {newVehiclePhoto ? (
+                      <img src={newVehiclePhoto} alt="Foto Vehículo" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center p-2 flex flex-col items-center gap-1">
+                        <Camera size={20} className="text-gray-500" />
+                        <span className="text-[9px] font-black text-gray-500 uppercase">{isVehiclePhotoCompressing ? 'Procesando...' : 'Subir Foto'}</span>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 ml-1 uppercase">Foto del Vehículo</label>
-                    <div 
-                      onClick={() => !isVehiclePhotoCompressing && document.getElementById('new-vehicle-photo-input').click()}
-                      className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden bg-black/30 hover:bg-black/50 ${newVehiclePhoto ? 'border-accent-primary border-solid' : 'border-white/20'}`}
-                    >
-                      {newVehiclePhoto ? (
-                        <img src={newVehiclePhoto} alt="Foto Vehículo" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="text-center p-2 flex flex-col items-center gap-1">
-                          <Camera size={20} className="text-gray-500" />
-                          <span className="text-[9px] font-black text-gray-500 uppercase">{isVehiclePhotoCompressing ? 'Procesando...' : 'Subir Foto'}</span>
-                        </div>
-                      )}
-                    </div>
-                    <input 
-                      id="new-vehicle-photo-input"
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        setIsVehiclePhotoCompressing(true);
-                        try {
-                          const compressed = await compressImage(file, 600, 0.8);
-                          setNewVehiclePhoto(compressed);
-                        } catch (err) {
-                          console.error(err);
-                          alert('Error al comprimir imagen');
-                        } finally {
-                          setIsVehiclePhotoCompressing(false);
-                        }
-                      }}
-                    />
-                  </div>
+                  <input 
+                    id="new-vehicle-photo-input"
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      setIsVehiclePhotoCompressing(true);
+                      try {
+                        const compressed = await compressImage(file, 600, 0.8);
+                        setNewVehiclePhoto(compressed);
+                      } catch (err) {
+                        console.error(err);
+                        alert('Error al comprimir imagen');
+                      } finally {
+                        setIsVehiclePhotoCompressing(false);
+                      }
+                    }}
+                  />
                 </div>
 
                 <div className="space-y-2">
