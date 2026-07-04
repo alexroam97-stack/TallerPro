@@ -3,6 +3,7 @@ import path from 'path';
 import pg from 'pg';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import admin from 'firebase-admin';
 
 const { Pool } = pg;
 
@@ -14,6 +15,31 @@ if (databaseUrl) {
     connectionString: databaseUrl,
     ssl: { rejectUnauthorized: false }
   });
+}
+
+// ─── Firebase Firestore Initialization ──────────────────────────────
+let db = null;
+const useFirestore = !!(
+  process.env.FIREBASE_PROJECT_ID &&
+  (process.env.FIREBASE_CLIENT_EMAIL || process.env.FIRESTORE_EMULATOR_HOST)
+);
+
+if (useFirestore) {
+  if (!admin.apps.length) {
+    const config = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+    };
+    if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      config.credential = admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      });
+    }
+    admin.initializeApp(config);
+  }
+  db = admin.firestore();
+  db.settings({ ignoreUndefinedProperties: true });
 }
 
 // ─── Auth Token Helpers ────────────────────────────────────────────
@@ -379,6 +405,75 @@ async function initializePostgres() {
     console.error('[DB] Postgres init failed:', err.message);
   }
 }
+
+let isFirestoreInitialized = false;
+
+async function initializeFirestore() {
+  if (isFirestoreInitialized || !useFirestore) return;
+  
+  try {
+    // Seed Settings
+    const settingsRef = db.collection('settings').doc('demo_workshop');
+    const settingsDoc = await settingsRef.get();
+    if (!settingsDoc.exists) {
+      await settingsRef.set(defaultSettings);
+    }
+    
+    // Seed Tickets
+    const ticketsSnapshot = await db.collection('tickets').limit(1).get();
+    if (ticketsSnapshot.empty) {
+      const batch = db.batch();
+      for (const t of defaultTickets) {
+        const ticketRef = db.collection('tickets').doc(t.id);
+        batch.set(ticketRef, { ...t, workshopId: 'demo_workshop' });
+      }
+      await batch.commit();
+    }
+    
+    // Seed Parts
+    const partsSnapshot = await db.collection('parts').limit(1).get();
+    if (partsSnapshot.empty) {
+      const batch = db.batch();
+      for (const p of defaultParts) {
+        const partRef = db.collection('parts').doc(p.id);
+        batch.set(partRef, { ...p, workshopId: 'demo_workshop' });
+      }
+      await batch.commit();
+    }
+    
+    // Seed Users
+    const usersSnapshot = await db.collection('users').limit(1).get();
+    if (usersSnapshot.empty) {
+      const { seedAdminHash, seedTechHash } = await getSeedHashes();
+      const batch = db.batch();
+      
+      batch.set(db.collection('users').doc('demo_admin'), {
+        id: 'demo_admin',
+        name: 'Admin Demo',
+        email: 'admin@tallerpro.com',
+        password: seedAdminHash,
+        picture: 'https://ui-avatars.com/api/?name=Admin+Demo&background=00f2ff&color=000',
+        role: 'admin',
+        workshopId: 'demo_workshop'
+      });
+      
+      batch.set(db.collection('users').doc('demo_tech'), {
+        id: 'demo_tech',
+        name: 'Técnico Demo',
+        email: 'tech@tallerpro.com',
+        password: seedTechHash,
+        picture: 'https://ui-avatars.com/api/?name=Tecnico+Demo&background=b512fa&color=fff',
+        role: 'mechanic',
+        workshopId: 'demo_workshop'
+      });
+      await batch.commit();
+    }
+    
+    isFirestoreInitialized = true;
+  } catch (err) {
+    console.error('[Firestore] Init failed:', err.message);
+  }
+}
  
 // ─── Local JSON DB ─────────────────────────────────────────────────
 function readLocalJson() {
@@ -452,6 +547,33 @@ function writeLocalJson(data) {
 
 // ─── Ticket Operations ─────────────────────────────────────────────
 export async function getTickets(workshopId) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const snapshot = await db.collection('tickets').where('workshopId', '==', workshopId).get();
+      const tickets = [];
+      snapshot.forEach(doc => {
+        const t = doc.data();
+        tickets.push({
+          id: doc.id,
+          ...t,
+          email: t.email || '',
+          clientPhoto: t.clientPhoto || '',
+          vehiclePhoto: t.vehiclePhoto || '',
+          events: t.events || [],
+          photos: t.photos || {},
+          items: t.items || [],
+          billingInfo: t.billingInfo || { rfc: '', zip: '', regime: '601', usage: 'G03' },
+          damagedPanels: t.damagedPanels || [],
+          timeLogs: t.timeLogs || {},
+          inventoryChecklist: t.inventoryChecklist || {}
+        });
+      });
+      return tickets;
+    } catch (err) {
+      console.error('[DB] getTickets error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -477,6 +599,30 @@ export async function getTickets(workshopId) {
 }
 
 export async function getTicket(id) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const doc = await db.collection('tickets').doc(id).get();
+      if (!doc.exists) return null;
+      const t = doc.data();
+      return {
+        id: doc.id,
+        ...t,
+        email: t.email || '',
+        clientPhoto: t.clientPhoto || '',
+        vehiclePhoto: t.vehiclePhoto || '',
+        events: t.events || [],
+        photos: t.photos || {},
+        items: t.items || [],
+        billingInfo: t.billingInfo || { rfc: '', zip: '', regime: '601', usage: 'G03' },
+        damagedPanels: t.damagedPanels || [],
+        timeLogs: t.timeLogs || {},
+        inventoryChecklist: t.inventoryChecklist || {}
+      };
+    } catch (err) {
+      console.error('[DB] getTicket error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -505,6 +651,15 @@ export async function getTicket(id) {
 }
 
 export async function addTicket(t) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      await db.collection('tickets').doc(t.id).set(t);
+      return t;
+    } catch (err) {
+      console.error('[DB] addTicket error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -536,6 +691,58 @@ export async function addTicket(t) {
 }
 
 export async function updateTicket(id, fields, workshopId = null) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const docRef = db.collection('tickets').doc(id);
+      const doc = await docRef.get();
+      if (!doc.exists) return null;
+      const current = doc.data();
+      if (workshopId && current.workshopId !== workshopId) return null;
+
+      const merged = { ...current, id, ...fields };
+      await docRef.update(fields);
+
+      // CRM Sync: Update email, phone, clientPhoto, and vehiclePhoto across all tickets of this client within the same workshop
+      const hasCrmFields = fields.email !== undefined || fields.clientPhoto !== undefined || 
+                           fields.vehiclePhoto !== undefined || fields.phone !== undefined;
+
+      if (hasCrmFields) {
+        const clientTickets = await db.collection('tickets')
+          .where('client', '==', current.client)
+          .where('workshopId', '==', current.workshopId || 'demo_workshop')
+          .get();
+
+        const batch = db.batch();
+        const crmUpdates = {};
+        if (fields.email !== undefined) crmUpdates.email = fields.email;
+        if (fields.clientPhoto !== undefined) crmUpdates.clientPhoto = fields.clientPhoto;
+        if (fields.vehiclePhoto !== undefined) crmUpdates.vehiclePhoto = fields.vehiclePhoto;
+        if (fields.phone !== undefined) crmUpdates.phone = fields.phone;
+
+        clientTickets.forEach(clientDoc => {
+          batch.update(clientDoc.ref, crmUpdates);
+        });
+        await batch.commit();
+      }
+
+      return {
+        ...merged,
+        email: merged.email || '',
+        clientPhoto: merged.clientPhoto || '',
+        vehiclePhoto: merged.vehiclePhoto || '',
+        events: merged.events || [],
+        photos: merged.photos || {},
+        items: merged.items || [],
+        billingInfo: merged.billingInfo || { rfc: '', zip: '', regime: '601', usage: 'G03' },
+        damagedPanels: merged.damagedPanels || [],
+        timeLogs: merged.timeLogs || {},
+        inventoryChecklist: merged.inventoryChecklist || {}
+      };
+    } catch (err) {
+      console.error('[DB] updateTicket error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -626,6 +833,36 @@ export async function updateTicket(id, fields, workshopId = null) {
 }
 
 export async function deleteTicket(id, workshopId) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const docRef = db.collection('tickets').doc(id);
+      const doc = await docRef.get();
+      if (doc.exists) {
+        const current = doc.data();
+        if (current.workshopId === workshopId) {
+          const batch = db.batch();
+          batch.delete(docRef);
+
+          // Delete parts associated with this ticket
+          const partsSnapshot = await db.collection('parts')
+            .where('ticketId', '==', id)
+            .where('workshopId', '==', workshopId)
+            .get();
+          
+          partsSnapshot.forEach(partDoc => {
+            batch.delete(partDoc.ref);
+          });
+
+          await batch.commit();
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error('[DB] deleteTicket error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -645,6 +882,27 @@ export async function deleteTicket(id, workshopId) {
 
 // ─── Parts Operations ──────────────────────────────────────────────
 export async function getParts(workshopId) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const snapshot = await db.collection('parts').where('workshopId', '==', workshopId).get();
+      const parts = [];
+      snapshot.forEach(doc => {
+        const p = doc.data();
+        parts.push({
+          id: doc.id,
+          ...p,
+          qty: parseInt(p.qty) || 0,
+          cost: parseFloat(p.cost) || 0,
+          salePrice: parseFloat(p.salePrice || p.saleprice) || 0,
+          qcChecked: p.qcChecked || { visual: false, packaging: false, compatibility: false, functional: false }
+        });
+      });
+      return parts;
+    } catch (err) {
+      console.error('[DB] getParts error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -664,6 +922,27 @@ export async function getParts(workshopId) {
 }
 
 export async function getPartsByTicket(ticketId) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const snapshot = await db.collection('parts').where('ticketId', '==', ticketId).get();
+      const parts = [];
+      snapshot.forEach(doc => {
+        const p = doc.data();
+        parts.push({
+          id: doc.id,
+          ...p,
+          qty: parseInt(p.qty) || 0,
+          cost: parseFloat(p.cost) || 0,
+          salePrice: parseFloat(p.salePrice || p.saleprice) || 0,
+          qcChecked: p.qcChecked || { visual: false, packaging: false, compatibility: false, functional: false }
+        });
+      });
+      return parts;
+    } catch (err) {
+      console.error('[DB] getPartsByTicket error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -684,6 +963,15 @@ export async function getPartsByTicket(ticketId) {
 
 export async function addPart(p, workshopId) {
   p.workshopId = workshopId;
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      await db.collection('parts').doc(p.id).set(p);
+      return p;
+    } catch (err) {
+      console.error('[DB] addPart error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -710,6 +998,31 @@ export async function addPart(p, workshopId) {
 }
 
 export async function updatePart(id, fields, workshopId) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const docRef = db.collection('parts').doc(id);
+      const doc = await docRef.get();
+      if (!doc.exists) return null;
+      const current = doc.data();
+      if (current.workshopId !== workshopId) return null;
+
+      const merged = {
+        ...current,
+        id,
+        ...fields,
+        qty: parseInt(fields.qty !== undefined ? fields.qty : current.qty) || 0,
+        cost: parseFloat(fields.cost !== undefined ? fields.cost : current.cost) || 0,
+        salePrice: parseFloat(fields.salePrice !== undefined ? fields.salePrice : (current.salePrice || current.saleprice)) || 0,
+        qcChecked: fields.qcChecked !== undefined ? fields.qcChecked : (current.qcChecked || { visual: false, packaging: false, compatibility: false, functional: false })
+      };
+
+      await docRef.update(merged);
+      return merged;
+    } catch (err) {
+      console.error('[DB] updatePart error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -753,6 +1066,23 @@ export async function updatePart(id, fields, workshopId) {
 }
 
 export async function deletePart(id, workshopId) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const docRef = db.collection('parts').doc(id);
+      const doc = await docRef.get();
+      if (doc.exists) {
+        const current = doc.data();
+        if (current.workshopId === workshopId) {
+          await docRef.delete();
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error('[DB] deletePart error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -770,6 +1100,21 @@ export async function deletePart(id, workshopId) {
 
 // ─── Settings Operations ───────────────────────────────────────────
 export async function getSettings(workshopId = 'demo_workshop') {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const doc = await db.collection('settings').doc(workshopId).get();
+      if (doc.exists) {
+        return doc.data();
+      }
+      const fallbackDoc = await db.collection('settings').doc('demo_workshop').get();
+      if (fallbackDoc.exists) {
+        return fallbackDoc.data();
+      }
+    } catch (err) {
+      console.error('[DB] getSettings error:', err.message);
+    }
+  }
   const settingsKey = `settings_${workshopId || 'demo_workshop'}`;
   if (pool) {
     await initializePostgres();
@@ -792,6 +1137,15 @@ export async function getSettings(workshopId = 'demo_workshop') {
 }
 
 export async function saveSettings(settings, workshopId = 'demo_workshop') {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      await db.collection('settings').doc(workshopId).set(settings);
+      return settings;
+    } catch (err) {
+      console.error('[DB] saveSettings error:', err.message);
+    }
+  }
   const settingsKey = `settings_${workshopId || 'demo_workshop'}`;
   if (pool) {
     await initializePostgres();
@@ -814,6 +1168,7 @@ export async function saveSettings(settings, workshopId = 'demo_workshop') {
     };
   }
   data.settings[workshopId] = settings;
+  data.settings[workshopId] = settings;
   writeLocalJson(data);
   return settings;
 }
@@ -821,6 +1176,20 @@ export async function saveSettings(settings, workshopId = 'demo_workshop') {
 // ─── User Operations ───────────────────────────────────────────────
 // PUBLIC: Returns user data WITHOUT password
 export async function getUsers() {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const snapshot = await db.collection('users').get();
+      const users = [];
+      snapshot.forEach(doc => {
+        const { password, ...safe } = doc.data();
+        users.push({ id: doc.id, ...safe });
+      });
+      return users;
+    } catch (err) {
+      console.error('[DB] getUsers error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -835,6 +1204,18 @@ export async function getUsers() {
 
 // PUBLIC: Returns user data WITHOUT password
 export async function getUserByEmail(email) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
+      if (snapshot.empty) return null;
+      const doc = snapshot.docs[0];
+      const { password, ...safe } = doc.data();
+      return { id: doc.id, ...safe };
+    } catch (err) {
+      console.error('[DB] getUserByEmail error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -854,6 +1235,17 @@ export async function getUserByEmail(email) {
 
 // INTERNAL: Returns user data WITH password hash (for auth only)
 export async function getUserByEmailWithPassword(email) {
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
+      if (snapshot.empty) return null;
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() };
+    } catch (err) {
+      console.error('[DB] getUserByEmailWithPassword error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
@@ -870,6 +1262,16 @@ export async function getUserByEmailWithPassword(email) {
 
 export async function addUser(u) {
   u.workshopId = u.workshopId || u.id;
+  if (useFirestore) {
+    await initializeFirestore();
+    try {
+      await db.collection('users').doc(u.id).set(u);
+      const { password, ...safe } = u;
+      return safe;
+    } catch (err) {
+      console.error('[DB] addUser error:', err.message);
+    }
+  }
   if (pool) {
     await initializePostgres();
     try {
