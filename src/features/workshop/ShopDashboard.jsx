@@ -1619,14 +1619,6 @@ export default function ShopDashboard() {
                     <p className="text-xs text-gray-500 italic ml-1">No hay conceptos agregados aún.</p>
                   )}
                 </div>
-
-                <div className="space-y-2 pt-4 border-t border-white/10 animate-fade-in-up">
-                  <label className="text-sm font-bold text-gray-400 ml-1 uppercase">Firma del Cliente (Conformidad)</label>
-                  <SignatureCanvas 
-                    onChange={setNewSignatureIntake} 
-                    placeholder="Dibuja la firma del cliente" 
-                  />
-                </div>
                 
                 <button type="submit" className="btn-premium w-full py-4 text-lg mt-4">
                   Generar Orden de Trabajo

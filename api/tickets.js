@@ -78,8 +78,8 @@ export default async function handler(req, res) {
       const auth = checkAuth(req, ['admin', 'mechanic']);
       let workshopId = null;
       if (!auth) {
-        // Unauthenticated clients may ONLY update budgetStatus or signatureDelivery
-        const allowedKeys = ['budgetStatus', 'signatureDelivery'];
+        // Unauthenticated clients may ONLY update budgetStatus, signatureDelivery, or signatureIntake
+        const allowedKeys = ['budgetStatus', 'signatureDelivery', 'signatureIntake'];
         const keys = Object.keys(fields);
         const isAllowed = keys.length > 0 && keys.every(key => allowedKeys.includes(key));
         if (!isAllowed) {

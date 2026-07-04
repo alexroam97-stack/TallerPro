@@ -18,6 +18,8 @@ export default function ClientTracker() {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [deliverySignature, setDeliverySignature] = useState('');
   const [signatureSaved, setSignatureSaved] = useState(false);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [intakeSignature, setIntakeSignature] = useState('');
   const [shopPhone, setShopPhone] = useState('526633040096');
   const [shopInfo, setShopInfo] = useState({
     name: 'TallerPro',
@@ -112,7 +114,11 @@ export default function ClientTracker() {
   const handleBudgetAction = async (status) => {
     try {
       await updateBudgetStatus(ticketId, status);
-      setTicket(prev => ({ ...prev, budgetStatus: status }));
+      setTicket(prev => ({ 
+        ...prev, 
+        budgetStatus: status,
+        signatureIntake: status === 'approved' && intakeSignature ? intakeSignature : (prev ? prev.signatureIntake : '')
+      }));
       
       const cleanShopPhone = shopPhone.replace(/\D/g, '');
       const actionText = status === 'approved' ? 'ACEPTADO' : 'DECLINADO';
@@ -536,25 +542,63 @@ export default function ClientTracker() {
               </div>
 
               {/* Acciones de Aprobación */}
-              <div className="p-6 bg-white/5 flex flex-col items-center justify-center gap-4">
+              <div className="p-6 bg-white/5 flex flex-col items-center justify-center gap-4 w-full">
                 {ticket.budgetStatus === 'pending' ? (
-                  <>
-                    <p className="text-gray-300 font-bold mb-2">¿Autorizas este presupuesto?</p>
-                    <div className="flex gap-4">
-                      <button 
-                        onClick={() => handleBudgetAction('approved')}
-                        className="btn-premium !bg-accent-success/20 !border-accent-success !text-accent-success !from-transparent !to-transparent border py-3 px-8 text-sm"
-                      >
-                        <Check size={18} className="inline mr-2" /> ACEPTAR REPARACIÓN
-                      </button>
-                      <button 
-                        onClick={() => handleBudgetAction('declined')}
-                        className="btn-secondary !border-red-500/50 !text-red-400 py-3 px-8 text-sm hover:!bg-red-500/10"
-                      >
-                        <XCircle size={18} className="inline mr-2" /> DECLINAR
-                      </button>
+                  !showSignaturePad ? (
+                    <>
+                      <p className="text-gray-300 font-bold mb-2">¿Autorizas este presupuesto?</p>
+                      <div className="flex gap-4">
+                        <button 
+                          onClick={() => setShowSignaturePad(true)}
+                          className="btn-premium !bg-accent-success/20 !border-accent-success !text-accent-success !from-transparent !to-transparent border py-3 px-8 text-sm"
+                        >
+                          <Check size={18} className="inline mr-2" /> ACEPTAR REPARACIÓN
+                        </button>
+                        <button 
+                          onClick={() => handleBudgetAction('declined')}
+                          className="btn-secondary !border-red-500/50 !text-red-400 py-3 px-8 text-sm hover:!bg-red-500/10"
+                        >
+                          <XCircle size={18} className="inline mr-2" /> DECLINAR
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full max-w-md space-y-4 animate-fade-in-up">
+                      <p className="text-gray-300 font-bold text-center">Firma tu conformidad para iniciar la reparación</p>
+                      <SignatureCanvas 
+                        onChange={setIntakeSignature} 
+                        placeholder="Dibuja tu firma aquí" 
+                      />
+                      <div className="flex gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSignaturePad(false);
+                            setIntakeSignature('');
+                          }}
+                          className="btn-secondary text-sm flex-1 py-3"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!intakeSignature}
+                          onClick={async () => {
+                            try {
+                              await saveSignature(ticketId, 'intake', intakeSignature);
+                              await handleBudgetAction('approved');
+                            } catch (err) {
+                              console.error(err);
+                              alert('Error al guardar firma de conformidad');
+                            }
+                          }}
+                          className={`btn-premium flex-1 py-3 text-sm text-center uppercase tracking-wider ${!intakeSignature ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          Confirmar y Autorizar
+                        </button>
+                      </div>
                     </div>
-                  </>
+                  )
                 ) : (
                   <div className="flex flex-col items-center gap-6 w-full">
                     <div className={`px-6 py-4 rounded-xl font-bold border w-full text-center ${ticket.budgetStatus === 'approved' ? 'bg-accent-success/10 border-accent-success text-accent-success' : 'bg-red-500/10 border-red-500 text-red-400'}`}>
